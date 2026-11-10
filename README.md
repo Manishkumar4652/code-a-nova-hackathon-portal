@@ -82,7 +82,7 @@ EMAIL_PASS=your_gmail_app_password
 ### Frontend (`client/.env`)
 
 ```env
-VITE_API_BASE_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:5000/api
 ```
 
 ---

@@ -13,17 +13,56 @@ export const isSmtpConfigured = () => {
 };
 
 /**
+ * Verify SMTP connection safely without logging credentials or raw secrets
+ */
+export const verifySMTPConnection = async () => {
+  if (!isSmtpConfigured()) {
+    return {
+      configured: false,
+      success: false,
+      message: 'SMTP credentials (EMAIL_USER and/or EMAIL_PASS) are missing or empty in server/.env.',
+    };
+  }
+
+  const transporter = createTransporter();
+  try {
+    await transporter.verify();
+    return {
+      configured: true,
+      success: true,
+      message: 'SMTP server connection established and verified successfully.',
+    };
+  } catch (error) {
+    let safeMessage = error.message || 'SMTP connection/authentication failed.';
+    if (process.env.EMAIL_PASS) {
+      safeMessage = safeMessage.replaceAll(process.env.EMAIL_PASS.trim(), '[REDACTED_PASSWORD]');
+      safeMessage = safeMessage.replaceAll(process.env.EMAIL_PASS.replace(/\s+/g, ''), '[REDACTED_PASSWORD]');
+    }
+    if (process.env.EMAIL_USER) {
+      safeMessage = safeMessage.replaceAll(process.env.EMAIL_USER.trim(), '[REDACTED_USER]');
+    }
+    return {
+      configured: true,
+      success: false,
+      message: safeMessage,
+    };
+  }
+};
+
+/**
  * Create Nodemailer transporter based on environment configuration
  */
 export const createTransporter = () => {
   if (isSmtpConfigured()) {
+    const port = Number(process.env.EMAIL_PORT) || 465;
+    const isSecure = port === 465;
     return nodemailer.createTransport({
       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: Number(process.env.EMAIL_PORT) || 587,
-      secure: Number(process.env.EMAIL_PORT) === 465,
+      port,
+      secure: isSecure,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: process.env.EMAIL_USER.trim(),
+        pass: process.env.EMAIL_PASS.replace(/\s+/g, ''),
       },
     });
   }
