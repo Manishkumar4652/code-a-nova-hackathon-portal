@@ -291,7 +291,9 @@ export default function HackathonRegister() {
     } catch (err) {
       const message =
         err.response?.data?.message ||
-        'Registration failed. Please check your submission details.';
+        (err.code === 'ERR_NETWORK' || !err.response
+          ? 'Cannot connect to backend server. Please verify the backend is running on http://localhost:5000.'
+          : 'Registration failed. Please check your submission details.');
       setServerError(message);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {

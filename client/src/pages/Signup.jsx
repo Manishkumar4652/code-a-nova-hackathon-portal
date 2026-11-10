@@ -80,7 +80,9 @@ export default function Signup() {
     } catch (err) {
       const message =
         err.response?.data?.message ||
-        'Unable to create account. Please check your details and try again.';
+        (err.code === 'ERR_NETWORK' || !err.response
+          ? 'Cannot connect to backend server. Please verify the backend is running on http://localhost:5000.'
+          : 'Unable to create account. Please check your details and try again.');
       setServerError(message);
     } finally {
       setLoading(false);

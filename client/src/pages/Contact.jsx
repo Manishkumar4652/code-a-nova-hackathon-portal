@@ -48,7 +48,9 @@ export default function Contact() {
     } catch (err) {
       const message =
         err.response?.data?.message ||
-        'Unable to send your inquiry at this moment. Please try again later.';
+        (err.code === 'ERR_NETWORK' || !err.response
+          ? 'Cannot connect to backend server. Please verify the backend is running on http://localhost:5000.'
+          : 'Unable to send your inquiry at this moment. Please try again later.');
       setServerError(message);
     } finally {
       setLoading(false);

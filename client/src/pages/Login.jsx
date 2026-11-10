@@ -73,7 +73,10 @@ export default function Login() {
     } catch (err) {
       const status = err.response?.status;
       const message =
-        err.response?.data?.message || 'Invalid email or password. Please try again.';
+        err.response?.data?.message ||
+        (err.code === 'ERR_NETWORK' || !err.response
+          ? 'Cannot connect to backend server. Please verify the backend is running on http://localhost:5000.'
+          : 'Invalid email or password. Please try again.');
 
       setServerError(message);
 
