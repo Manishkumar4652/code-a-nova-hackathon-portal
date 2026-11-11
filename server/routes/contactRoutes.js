@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { submitContact } from '../controllers/contactController.js';
+import { submitContact, getContactInfo } from '../controllers/contactController.js';
+import { authLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
-router.post('/', submitContact);
+router.get('/info', getContactInfo);
+router.post('/', authLimiter, submitContact);
 
 export default router;
-

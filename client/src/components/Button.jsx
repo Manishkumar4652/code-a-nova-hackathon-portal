@@ -1,6 +1,26 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 
+const base =
+  'inline-flex items-center justify-center gap-2 rounded-[10px] font-semibold transition-all duration-200 ease-out select-none ' +
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nova-600 ' +
+  'disabled:cursor-not-allowed disabled:opacity-50 active:translate-y-px';
+
+const variants = {
+  primary: 'bg-nova-600 text-white shadow-nova hover:bg-nova-700 hover:-translate-y-0.5',
+  dark: 'bg-ink text-surface hover:bg-navy-2 hover:-translate-y-0.5',
+  outline: 'border border-line-strong bg-surface text-ink hover:border-ink hover:bg-paper-2',
+  ghost: 'text-ink-soft hover:bg-paper-2 hover:text-ink',
+  light: 'bg-surface text-ink hover:bg-white hover:-translate-y-0.5',
+  danger: 'border border-bad/30 bg-bad-soft text-bad hover:bg-bad hover:text-white',
+};
+
+const sizes = {
+  sm: 'px-3.5 py-2 text-[13px]',
+  md: 'px-5 py-2.5 text-sm',
+  lg: 'px-7 py-3.5 text-[15px]',
+};
+
 export default function Button({
   children,
   variant = 'primary',
@@ -12,33 +32,16 @@ export default function Button({
   onClick,
   ...props
 }) {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#030712] disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]';
-
-  const variants = {
-    primary: 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25 border border-indigo-400/20 focus:ring-indigo-500',
-    secondary: 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700/60 focus:ring-slate-600',
-    outline: 'bg-transparent hover:bg-slate-800/60 text-slate-200 border border-slate-700 hover:border-slate-600 focus:ring-indigo-500',
-    ghost: 'bg-transparent hover:bg-slate-800/50 text-slate-300 hover:text-white focus:ring-slate-600',
-    danger: 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/25 focus:ring-rose-500',
-  };
-
-  const sizes = {
-    sm: 'text-xs px-3 py-1.5 gap-1.5',
-    md: 'text-sm px-4 py-2.5 gap-2',
-    lg: 'text-base px-6 py-3.5 gap-2.5 font-semibold',
-  };
-
   return (
     <button
       type={type}
       disabled={disabled || loading}
       onClick={onClick}
-      className={`${baseStyles} ${variants[variant] || variants.primary} ${sizes[size] || sizes.md} ${className}`}
+      className={`${base} ${variants[variant] || variants.primary} ${sizes[size] || sizes.md} ${className}`}
       {...props}
     >
-      {loading && <Loader2 className="w-4 h-4 animate-spin text-current" />}
+      {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
       {children}
     </button>
   );
 }
-

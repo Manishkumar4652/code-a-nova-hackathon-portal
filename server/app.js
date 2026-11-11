@@ -8,6 +8,9 @@ import { notFound, errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 
+// Render / Railway sit behind a reverse proxy — needed so rate limiting sees the real client IP
+app.set('trust proxy', 1);
+
 // CORS configuration supporting local development ports and environment origins
 const defaultOrigins = [
   'http://localhost:5173',
@@ -37,7 +40,7 @@ app.use(
 );
 
 // Body parsing middleware
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Health Check Endpoint

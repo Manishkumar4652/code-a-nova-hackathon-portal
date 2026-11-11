@@ -1,7 +1,8 @@
+import mongoose from 'mongoose';
 import HackathonRegistration from '../models/HackathonRegistration.js';
+import { isValidHttpUrl } from '../utils/validators.js';
 import { sendRegistrationConfirmationEmail } from '../utils/email.js';
 
-const urlPattern = /^(https?:\/\/)([\da-z.-]+)\.([a-z.]{2,6})([/\w .~-]*)*\/?(\?.*)?$/i;
 const namePattern = /^[a-zA-Z\s]+$/;
 const mobilePattern = /^[6-9]\d{9}$/;
 const emailPattern = /^\S+@\S+\.\S+$/;
@@ -93,21 +94,21 @@ export const registerHackathon = async (req, res, next) => {
     }
 
     // URL validations
-    if (!urlPattern.test(pptUrl.trim())) {
+    if (!isValidHttpUrl(pptUrl)) {
       return res.status(400).json({
         status: 'error',
         message: 'Please provide a valid shareable link for your PPT presentation.',
       });
     }
 
-    if (!urlPattern.test(prototypeUrl.trim())) {
+    if (!isValidHttpUrl(prototypeUrl)) {
       return res.status(400).json({
         status: 'error',
         message: 'Please provide a valid URL for your prototype (GitHub / Figma / Live demo).',
       });
     }
 
-    if (demoVideoUrl && demoVideoUrl.trim() !== '' && !urlPattern.test(demoVideoUrl.trim())) {
+    if (demoVideoUrl && demoVideoUrl.trim() !== '' && !isValidHttpUrl(demoVideoUrl)) {
       return res.status(400).json({
         status: 'error',
         message: 'Please provide a valid URL for your demo video (YouTube / Drive).',
@@ -199,6 +200,7 @@ export const registerHackathon = async (req, res, next) => {
     const emailResult = await sendRegistrationConfirmationEmail({
       to: user.email,
       participantName: fullName.trim(),
+      participantEmail: user.email,
       projectName: projectName.trim(),
       domain: domain.trim(),
       teamSize: parsedTeamSize,
@@ -253,3 +255,41 @@ export const getMyEntry = async (req, res, next) => {
   }
 };
 
+
+/**
+ * @desc    Delete the authenticated user's own hackathon registration
+ * @route   DELETE /api/hackathon/:id
+ * @access  Private (owner only)
+ */
+export const deleteEntry = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid registration id.',
+      });
+    }
+
+    // Scope the lookup to the logged-in user so nobody can delete another entry
+    const entry = await HackathonRegistration.findOneAndDelete({
+      _id: id,
+      user: req.user._id,
+    });
+
+    if (!entry) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Registration not found for this account.',
+      });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Your hackathon registration has been withdrawn.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};

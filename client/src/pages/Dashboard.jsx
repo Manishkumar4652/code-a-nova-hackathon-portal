@@ -1,311 +1,336 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { hackathonService } from '../services/api';
 import {
-  User,
-  Mail,
-  ShieldCheck,
-  Calendar,
-  Sparkles,
-  ArrowRight,
-  LogOut,
-  FolderGit2,
-  ExternalLink,
-  Phone,
-  GraduationCap,
-  Layers,
-  Users2,
-  CheckCircle2,
-  AlertCircle,
-  RotateCw,
+  ShieldCheck, Mail, CalendarDays, ArrowRight, ExternalLink, Phone, GraduationCap,
+  Layers, Users2, Pencil, Check, X, Trash2, RotateCw, CheckCircle2, Circle,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { authService, hackathonService } from '../services/api';
+import { nameRegex } from '../utils/validators';
 import Button from '../components/Button';
+import Input from '../components/Input';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
 
+/** Small labelled value used in the registration summary. */
+function Detail({ icon: Icon, label, children }) {
+  return (
+    <div className="rounded-[10px] border border-line bg-paper p-4">
+      <dt className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
+        <Icon className="h-3.5 w-3.5" aria-hidden="true" /> {label}
+      </dt>
+      <dd className="mt-1.5 break-words text-sm font-semibold text-ink">{children}</dd>
+    </div>
+  );
+}
+
 export default function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
 
   const [loadingEntry, setLoadingEntry] = useState(true);
   const [entryError, setEntryError] = useState('');
-  const [hasRegistered, setHasRegistered] = useState(false);
   const [entry, setEntry] = useState(null);
 
-  const fetchMyEntry = async () => {
+  // Profile editing
+  const [editing, setEditing] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [notice, setNotice] = useState('');
+
+  // Withdraw registration
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchMyEntry = useCallback(async () => {
     setLoadingEntry(true);
     setEntryError('');
     try {
       const res = await hackathonService.getMyEntry();
-      if (res.status === 'success') {
-        setHasRegistered(Boolean(res.hasRegistered));
-        setEntry(res.entry || null);
-      }
+      setEntry(res.hasRegistered ? res.entry : null);
     } catch (err) {
-      setEntryError(
-        err.response?.data?.message || 'Unable to retrieve hackathon registration status.'
-      );
+      setEntryError(err.response?.data?.message || 'Unable to load your registration right now.');
     } finally {
       setLoadingEntry(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMyEntry();
-  }, []);
+  }, [fetchMyEntry]);
 
-  const formattedDate = user?.createdAt
-    ? new Date(user.createdAt).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    : 'Active Participant';
+  const joined = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })
+    : '—';
+
+  const startEdit = () => {
+    setNameDraft(user?.fullName || '');
+    setNameError('');
+    setEditing(true);
+  };
+
+  const saveName = async (e) => {
+    e.preventDefault();
+    const value = nameDraft.trim();
+    if (value.length < 3) return setNameError('Use at least 3 characters');
+    if (!nameRegex.test(value)) return setNameError('Letters and spaces only');
+
+    setSavingName(true);
+    setNameError('');
+    try {
+      const res = await authService.updateProfile({ fullName: value });
+      setUser(res.user);
+      setEditing(false);
+      setNotice('Profile updated.');
+    } catch (err) {
+      setNameError(err.response?.data?.message || 'Could not update your name.');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const withdraw = async () => {
+    setDeleting(true);
+    setEntryError('');
+    try {
+      await hackathonService.deleteEntry(entry._id);
+      setEntry(null);
+      setConfirmDelete(false);
+      setNotice('Your registration was withdrawn. You can register again any time.');
+    } catch (err) {
+      setEntryError(err.response?.data?.message || 'Could not withdraw your registration.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const registered = Boolean(entry);
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 py-10 sm:py-16">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        {/* Welcome Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 sm:p-8 rounded-3xl glass-panel border border-slate-800">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Verified Participant Account</span>
-            </div>
-            <h1 className="font-heading text-2xl sm:text-3xl font-bold text-white pt-1">
-              Welcome back, {user?.fullName}!
-            </h1>
-            <p className="text-slate-400 text-xs sm:text-sm">
-              Code-a-Nova Hackathon 2026 Participant Dashboard
-            </p>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={logout}
-            className="self-start sm:self-center text-slate-400 hover:text-rose-400 border-slate-800 hover:border-rose-900/40"
-          >
-            <LogOut className="w-4 h-4 mr-1.5" />
-            Sign Out
-          </Button>
+    <div className="container-page py-10 sm:py-14">
+      {/* Header */}
+      <header className="flex flex-col justify-between gap-5 border-b border-line pb-8 sm:flex-row sm:items-end">
+        <div>
+          <p className="eyebrow inline-flex items-center gap-1.5 !text-ok">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> Verified participant
+          </p>
+          <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
+            Hi, {user?.fullName?.split(' ')[0] || 'there'}.
+          </h1>
+          <p className="mt-1.5 text-ink-muted">Your Code-a-Nova Hackathon 2026 dashboard.</p>
         </div>
 
-        {/* Error Alert */}
+        {/* Progress */}
+        <ol className="flex items-center gap-3 text-sm" aria-label="Your progress">
+          <li className="flex items-center gap-2 font-medium text-ok">
+            <CheckCircle2 className="h-5 w-5" aria-hidden="true" /> Account verified
+          </li>
+          <span className="h-px w-6 bg-line-strong" aria-hidden="true" />
+          <li className={`flex items-center gap-2 font-medium ${registered ? 'text-ok' : 'text-ink-muted'}`}>
+            {registered ? <CheckCircle2 className="h-5 w-5" aria-hidden="true" /> : <Circle className="h-5 w-5" aria-hidden="true" />}
+            Team registered
+          </li>
+        </ol>
+      </header>
+
+      <div className="mt-6 space-y-3">
+        {notice && <Alert type="success" message={notice} onClose={() => setNotice('')} />}
         {entryError && (
-          <div className="flex items-center justify-between p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <span>{entryError}</span>
-            </div>
-            <button
-              onClick={fetchMyEntry}
-              className="text-xs font-semibold underline hover:text-white flex items-center gap-1"
-            >
-              <RotateCw className="w-3.5 h-3.5" /> Retry
-            </button>
-          </div>
+          <Alert type="error" message={entryError} onClose={() => setEntryError('')}>
+            {!entry && (
+              <button onClick={fetchMyEntry} className="ml-2 inline-flex items-center gap-1 font-bold underline">
+                <RotateCw className="h-3.5 w-3.5" aria-hidden="true" /> Retry
+              </button>
+            )}
+          </Alert>
         )}
+      </div>
 
-        {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* User Profile Card */}
-          <div className="glass-card p-6 rounded-3xl border border-slate-800 space-y-5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Account Overview
-            </h3>
-            <div className="space-y-3.5 text-sm">
-              <div className="flex items-start gap-3 text-slate-300">
-                <User className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
-                <div className="flex flex-col">
-                  <span className="text-xs text-slate-500">Full Name</span>
-                  <span className="font-semibold text-white">{user?.fullName}</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 text-slate-300">
-                <Mail className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
-                <div className="flex flex-col">
-                  <span className="text-xs text-slate-500">Email Address</span>
-                  <span className="text-xs text-slate-300 font-mono">{user?.email}</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 text-slate-300">
-                <Calendar className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                <div className="flex flex-col">
-                  <span className="text-xs text-slate-500">Joined Platform</span>
-                  <span className="text-xs text-slate-300">{formattedDate}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-800/80">
-              <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800/60 text-xs text-slate-400">
-                <span className="text-slate-300 font-medium block mb-1">Status:</span>
-                {hasRegistered ? (
-                  <span className="text-emerald-400 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Registered for Event
-                  </span>
-                ) : (
-                  <span className="text-amber-400 font-bold">Pending Registration</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Hackathon Event Section (Dynamic based on registration status) */}
-          <div className="md:col-span-2">
-            {loadingEntry ? (
-              <div className="glass-panel p-12 rounded-3xl border border-slate-800 flex items-center justify-center min-h-[250px]">
-                <Loading message="Fetching your hackathon entry..." size="md" />
-              </div>
-            ) : hasRegistered && entry ? (
-              /* State A: Already Registered -> Display Full Submission Details */
-              <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-indigo-500/30 space-y-6 relative overflow-hidden shadow-2xl">
-                <div className="pointer-events-none absolute -top-10 -right-10 w-72 h-72 bg-indigo-500/10 blur-[90px] rounded-full" />
-
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800/80">
-                  <div>
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold mb-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Registration Confirmed</span>
-                    </div>
-                    <h2 className="font-heading text-xl sm:text-2xl font-bold text-white">
-                      {entry.projectName}
-                    </h2>
-                  </div>
-                  <span className="text-xs text-indigo-400 font-semibold px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 self-start sm:self-center">
-                    {entry.domain}
-                  </span>
-                </div>
-
-                {/* Academic & Contact Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
-                  <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/60 space-y-1">
-                    <span className="text-slate-500 text-xs flex items-center gap-1">
-                      <GraduationCap className="w-3.5 h-3.5 text-purple-400" /> College
-                    </span>
-                    <strong className="text-slate-200 block truncate">{entry.college}</strong>
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/60 space-y-1">
-                    <span className="text-slate-500 text-xs flex items-center gap-1">
-                      <Layers className="w-3.5 h-3.5 text-indigo-400" /> Course & Branch
-                    </span>
-                    <strong className="text-slate-200 block truncate">
-                      {entry.course} ({entry.branch}) • {entry.year}
-                    </strong>
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/60 space-y-1">
-                    <span className="text-slate-500 text-xs flex items-center gap-1">
-                      <Phone className="w-3.5 h-3.5 text-emerald-400" /> Contact Number
-                    </span>
-                    <strong className="text-slate-200 block">{entry.mobile}</strong>
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/60 space-y-1">
-                    <span className="text-slate-500 text-xs flex items-center gap-1">
-                      <Users2 className="w-3.5 h-3.5 text-amber-400" /> Team Size
-                    </span>
-                    <strong className="text-slate-200 block">
-                      {entry.teamSize} {entry.teamSize === 1 ? 'Participant (Solo)' : 'Members'}
-                    </strong>
-                  </div>
-                </div>
-
-                {/* Additional Team Members */}
-                {entry.teamMembers && entry.teamMembers.length > 0 && (
-                  <div className="pt-2">
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-3">
-                      Team Members ({entry.teamMembers.length})
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {entry.teamMembers.map((m, idx) => (
-                        <div
-                          key={idx}
-                          className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs flex flex-col"
-                        >
-                          <span className="font-semibold text-white">{m.name}</span>
-                          <span className="text-slate-400 font-mono text-[11px] truncate">{m.email}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Submission Links */}
-                <div className="pt-4 border-t border-slate-800/80 space-y-3">
-                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
-                    Submission Links
-                  </span>
-                  <div className="flex flex-wrap gap-3">
-                    <a
-                      href={entry.pptUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30 transition-smooth"
-                    >
-                      <span>Presentation Deck (PPT)</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-
-                    <a
-                      href={entry.prototypeUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-semibold border border-purple-500/30 transition-smooth"
-                    >
-                      <span>Working Prototype</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-
-                    {entry.demoVideoUrl && (
-                      <a
-                        href={entry.demoVideoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 text-pink-300 text-xs font-semibold border border-pink-500/30 transition-smooth"
-                      >
-                        <span>Demo Video</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* State B: Not Registered Yet -> Prominent Register Now CTA */
-              <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-indigo-500/30 relative overflow-hidden flex flex-col justify-between min-h-[300px] shadow-2xl">
-                <div className="pointer-events-none absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 blur-[90px] rounded-full" />
-                <div>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-300 text-xs font-semibold mb-3">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Registrations Currently Open</span>
-                  </div>
-                  <h2 className="font-heading text-xl sm:text-2xl font-bold text-white mb-2">
-                    Submit Your Hackathon Project Entry
-                  </h2>
-                  <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mb-6 max-w-lg">
-                    You have not registered for the Code-a-Nova Hackathon 2026 yet. Assemble your team (1-5 members), prepare your PPT presentation and prototype link, and complete your registration before deadlines.
-                  </p>
-                </div>
-
-                <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between">
-                  <div className="text-xs text-slate-500">
-                    Takes approx. 3 minutes to complete.
-                  </div>
-                  <Link to="/hackathon/register">
-                    <Button size="lg" className="gap-2 shadow-indigo-600/30">
-                      <FolderGit2 className="w-4 h-4" />
-                      <span>Register Now</span>
-                      <ArrowRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
+      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+        {/* Profile */}
+        <aside className="card h-fit p-6">
+          <div className="flex items-start justify-between">
+            <h2 className="eyebrow">Profile</h2>
+            {!editing && (
+              <button
+                onClick={startEdit}
+                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-nova-600 hover:bg-nova-50"
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Edit
+              </button>
             )}
           </div>
-        </div>
+
+          <span className="mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-navy font-display text-xl font-bold uppercase text-surface">
+            {user?.fullName?.[0] || '?'}
+          </span>
+
+          {editing ? (
+            <form onSubmit={saveName} className="mt-4 space-y-3" noValidate>
+              <Input
+                label="Full name"
+                name="fullName"
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                error={nameError}
+                disabled={savingName}
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <Button type="submit" size="sm" loading={savingName}>
+                  <Check className="h-4 w-4" aria-hidden="true" /> Save
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={savingName}>
+                  <X className="h-4 w-4" aria-hidden="true" /> Cancel
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <p className="mt-4 font-display text-2xl font-bold leading-tight">{user?.fullName}</p>
+          )}
+
+          <dl className="mt-6 space-y-4 border-t border-line pt-5 text-sm">
+            <div className="flex items-start gap-3">
+              <Mail className="mt-0.5 h-4 w-4 flex-shrink-0 text-ink-muted" aria-hidden="true" />
+              <div className="min-w-0">
+                <dt className="text-xs text-ink-muted">Email</dt>
+                <dd className="break-all font-medium">{user?.email}</dd>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <CalendarDays className="mt-0.5 h-4 w-4 flex-shrink-0 text-ink-muted" aria-hidden="true" />
+              <div>
+                <dt className="text-xs text-ink-muted">Joined</dt>
+                <dd className="font-medium">{joined}</dd>
+              </div>
+            </div>
+          </dl>
+
+          <Button variant="outline" size="sm" className="mt-6 w-full" onClick={logout}>
+            Sign out
+          </Button>
+        </aside>
+
+        {/* Registration */}
+        <section aria-label="Hackathon registration">
+          {loadingEntry ? (
+            <div className="card flex min-h-[320px] items-center justify-center">
+              <Loading message="Loading your entry" />
+            </div>
+          ) : entry ? (
+            <div className="card overflow-hidden">
+              <div className="flex flex-col gap-3 border-b border-line bg-ok-soft/60 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+                <div>
+                  <p className="eyebrow inline-flex items-center gap-1.5 !text-ok">
+                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> Registration confirmed
+                  </p>
+                  <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl">{entry.projectName}</h2>
+                </div>
+                <span className="self-start rounded-full border border-line-strong bg-surface px-3.5 py-1.5 text-xs font-semibold">
+                  {entry.domain}
+                </span>
+              </div>
+
+              <div className="space-y-8 p-6 sm:p-8">
+                <dl className="grid gap-3 sm:grid-cols-2">
+                  <Detail icon={GraduationCap} label="College">{entry.college}</Detail>
+                  <Detail icon={Layers} label="Course · Branch · Year">
+                    {entry.course} · {entry.branch} · {entry.year}
+                  </Detail>
+                  <Detail icon={Phone} label="Mobile">{entry.mobile}</Detail>
+                  <Detail icon={Users2} label="Team size">
+                    {entry.teamSize} {entry.teamSize === 1 ? '(solo)' : 'members'}
+                  </Detail>
+                </dl>
+
+                {entry.teamMembers?.length > 0 && (
+                  <div>
+                    <h3 className="eyebrow">Team members</h3>
+                    <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {entry.teamMembers.map((m, idx) => (
+                        <li key={idx} className="flex items-center gap-3 rounded-[10px] border border-line p-3.5">
+                          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-paper-3 text-sm font-bold uppercase">
+                            {m.name[0]}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">{m.name}</p>
+                            <p className="truncate text-xs text-ink-muted">{m.email}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div>
+                  <h3 className="eyebrow">Submission links</h3>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {[
+                      ['Presentation (PPT)', entry.pptUrl],
+                      ['Prototype', entry.prototypeUrl],
+                      entry.demoVideoUrl && ['Demo video', entry.demoVideoUrl],
+                    ]
+                      .filter(Boolean)
+                      .map(([label, href]) => (
+                        <a
+                          key={label}
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 rounded-[10px] border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold transition-colors hover:border-ink hover:bg-paper-2"
+                        >
+                          {label} <ExternalLink className="h-3.5 w-3.5 text-ink-muted" aria-hidden="true" />
+                        </a>
+                      ))}
+                  </div>
+                </div>
+
+                {/* Withdraw */}
+                <div className="border-t border-line pt-6">
+                  {confirmDelete ? (
+                    <div className="flex flex-col gap-3 rounded-[10px] border border-bad/25 bg-bad-soft p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm font-medium text-bad">Withdraw this registration? This cannot be undone.</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                          Keep it
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={withdraw} loading={deleting}>
+                          Yes, withdraw
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDelete(true)}
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-ink-muted transition-colors hover:text-bad"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" /> Withdraw registration
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="relative overflow-hidden rounded-xl2 bg-navy p-7 text-surface shadow-lift sm:p-10">
+              <div className="dot-grid-light absolute inset-0" aria-hidden="true" />
+              <div className="relative">
+                <p className="eyebrow !text-nova-300">Registrations open</p>
+                <h2 className="mt-3 max-w-md font-display text-3xl font-bold leading-tight !text-surface sm:text-4xl">
+                  You haven’t registered a team yet.
+                </h2>
+                <p className="mt-4 max-w-lg leading-relaxed text-[#C9D1DF]">
+                  Add your team (1–5 members), choose a track and share your PPT and prototype links. It takes about
+                  three minutes and you’ll get a confirmation email.
+                </p>
+                <Link to="/hackathon/register" className="mt-8 inline-block">
+                  <Button size="lg">
+                    Register now <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

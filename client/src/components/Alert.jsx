@@ -1,53 +1,38 @@
 import React from 'react';
-import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Info, TriangleAlert, X } from 'lucide-react';
 
-export default function Alert({
-  type = 'error',
-  message,
-  onClose,
-  className = '',
-}) {
+const styles = {
+  error: { wrapper: 'border-bad/25 bg-bad-soft text-bad', icon: AlertCircle },
+  success: { wrapper: 'border-ok/25 bg-ok-soft text-ok', icon: CheckCircle2 },
+  warning: { wrapper: 'border-warn/25 bg-warn-soft text-warn', icon: TriangleAlert },
+  info: { wrapper: 'border-navy/15 bg-paper-2 text-ink-soft', icon: Info },
+};
+
+export default function Alert({ type = 'error', message, onClose, className = '', children }) {
   if (!message) return null;
-
-  const styles = {
-    error: {
-      wrapper: 'bg-rose-500/10 border-rose-500/30 text-rose-300',
-      icon: AlertCircle,
-      iconColor: 'text-rose-400',
-    },
-    success: {
-      wrapper: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
-      icon: CheckCircle2,
-      iconColor: 'text-emerald-400',
-    },
-    info: {
-      wrapper: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300',
-      icon: Info,
-      iconColor: 'text-indigo-400',
-    },
-  };
-
   const current = styles[type] || styles.error;
-  const IconComponent = current.icon;
+  const Icon = current.icon;
 
   return (
     <div
-      className={`flex items-start gap-3 p-3.5 rounded-xl border text-sm backdrop-blur-sm ${current.wrapper} ${className}`}
-      role="alert"
+      className={`flex items-start gap-3 rounded-[10px] border p-3.5 text-sm ${current.wrapper} ${className}`}
+      role={type === 'error' ? 'alert' : 'status'}
     >
-      <IconComponent className={`w-5 h-5 flex-shrink-0 mt-0.5 ${current.iconColor}`} />
-      <div className="flex-1 font-medium">{message}</div>
+      <Icon className="mt-0.5 h-[18px] w-[18px] flex-shrink-0" aria-hidden="true" />
+      <div className="flex-1 font-medium leading-snug">
+        {message}
+        {children}
+      </div>
       {onClose && (
         <button
           type="button"
           onClick={onClose}
-          className="text-slate-400 hover:text-white transition-colors"
-          aria-label="Dismiss alert"
+          className="rounded p-0.5 opacity-70 transition-opacity hover:opacity-100"
+          aria-label="Dismiss message"
         >
-          <X className="w-4 h-4" />
+          <X className="h-4 w-4" />
         </button>
       )}
     </div>
   );
 }
-

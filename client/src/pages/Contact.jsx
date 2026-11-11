@@ -1,35 +1,34 @@
 import React, { useState } from 'react';
-import { Mail, User, Send, CheckCircle2, MessageSquare, AlertCircle } from 'lucide-react';
+import { Mail, User, Send, CheckCircle2, Clock } from 'lucide-react';
 import { contactService } from '../services/api';
+import { emailRegex } from '../utils/validators';
+import useContactEmail from '../hooks/useContactEmail';
 import Button from '../components/Button';
-import Input from '../components/Input';
+import Input, { Textarea } from '../components/Input';
 import Alert from '../components/Alert';
 
 export default function Contact() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    message: '',
-  });
+  const contactEmail = useContactEmail();
 
+  const [formData, setFormData] = useState({ name: '', email: '', message: '' });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const validate = () => {
-    const errs = {};
-    if (!formData.name.trim() || formData.name.trim().length < 2) {
-      errs.name = 'Please provide your full name (min 2 characters)';
-    }
-    if (!formData.email.trim() || !/^\S+@\S+\.\S+$/.test(formData.email.trim())) {
-      errs.email = 'Please provide a valid email address';
-    }
-    if (!formData.message.trim() || formData.message.trim().length < 10) {
-      errs.message = 'Message must be at least 10 characters long';
-    }
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
+    const next = {};
+    if (formData.name.trim().length < 2) next.name = 'Please enter your name';
+    if (!emailRegex.test(formData.email.trim())) next.email = 'Enter a valid email address';
+    if (formData.message.trim().length < 10) next.message = 'Message must be at least 10 characters';
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
   const handleSubmit = async (e) => {
@@ -46,112 +45,117 @@ export default function Contact() {
         setFormData({ name: '', email: '', message: '' });
       }
     } catch (err) {
-      const message =
+      setServerError(
         err.response?.data?.message ||
-        (err.code === 'ERR_NETWORK' || !err.response
-          ? 'Cannot connect to backend server. Please verify the backend is running on http://localhost:5000.'
-          : 'Unable to send your inquiry at this moment. Please try again later.');
-      setServerError(message);
+          (!err.response
+            ? 'Cannot reach the server. Check your connection and try again.'
+            : 'We could not send your message. Please try again later.')
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 py-16 sm:py-24">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <div className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-2">
-            Support & Inquiries
-          </div>
-          <h1 className="font-heading text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-            Get in Touch with Code-a-Nova
+    <div className="container-page py-16 sm:py-24">
+      <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-20">
+        <div>
+          <p className="eyebrow">Contact</p>
+          <h1 className="mt-4 font-display text-4xl font-extrabold leading-[1.05] sm:text-5xl">
+            Questions? We’re listening.
           </h1>
-          <p className="text-slate-400 text-sm max-w-lg mx-auto">
-            Have questions regarding eligibility, team registration, or track requirements? Send us a message below.
+          <p className="mt-5 max-w-md text-lg leading-relaxed text-ink-soft">
+            Ask about eligibility, team rules or tracks. Use the form or write to us directly.
           </p>
+
+          <dl className="mt-10 space-y-6">
+            <div className="flex items-start gap-4">
+              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-nova-50 text-nova-600">
+                <Mail className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <dt className="eyebrow">Email</dt>
+                <dd className="mt-1">
+                  {contactEmail ? (
+                    <a href={`mailto:${contactEmail}`} className="font-semibold text-ink underline decoration-line-strong underline-offset-4 hover:text-nova-600">
+                      {contactEmail}
+                    </a>
+                  ) : (
+                    <span className="text-ink-muted">Loading…</span>
+                  )}
+                </dd>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-nova-50 text-nova-600">
+                <Clock className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <dt className="eyebrow">Replies</dt>
+                <dd className="mt-1 text-ink-soft">The organising team replies to your email address.</dd>
+              </div>
+            </div>
+          </dl>
         </div>
 
-        <div className="glass-panel p-8 sm:p-10 rounded-3xl border border-slate-800 shadow-2xl relative">
-          {serverError && (
-            <div className="mb-6">
-              <Alert type="error" message={serverError} onClose={() => setServerError('')} />
-            </div>
-          )}
-
+        <div className="card p-6 sm:p-9">
           {submitted ? (
-            <div className="text-center py-10 space-y-4">
-              <div className="w-14 h-14 mx-auto rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold text-white">Message Received!</h3>
-              <p className="text-sm text-slate-400 max-w-sm mx-auto">
-                Thank you for reaching out. The Code-a-Nova event organizing committee has received your message and will respond to your email.
+            <div className="space-y-4 py-10 text-center" role="status">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-ok-soft text-ok">
+                <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
+              </span>
+              <h2 className="font-display text-2xl font-bold">Message sent</h2>
+              <p className="mx-auto max-w-sm text-sm text-ink-muted">
+                Thanks for reaching out. The Code-a-Nova team has your message and will reply by email.
               </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSubmitted(false)}
-                className="mt-4"
-              >
-                Send Another Message
+              <Button variant="outline" size="sm" onClick={() => setSubmitted(false)}>
+                Send another message
               </Button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-              <Input
-                label="Your Name"
-                placeholder="e.g. Maya Sharma"
-                icon={User}
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                error={errors.name}
-                disabled={loading}
-              />
+              {serverError && <Alert type="error" message={serverError} onClose={() => setServerError('')} />}
 
-              <Input
-                label="Email Address"
-                type="email"
-                placeholder="maya@example.com"
-                icon={Mail}
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                error={errors.email}
-                disabled={loading}
-              />
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Message / Inquiry
-                </label>
-                <textarea
-                  rows={5}
-                  placeholder="Detail your question or query here..."
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Input
+                  label="Your name"
+                  name="name"
+                  placeholder="Full name"
+                  icon={User}
+                  value={formData.name}
+                  onChange={handleChange}
+                  error={errors.name}
                   disabled={loading}
-                  className={`w-full rounded-xl bg-slate-900/80 border text-slate-100 placeholder-slate-500 text-sm p-3.5 transition-smooth focus:outline-none focus:ring-2 ${
-                    errors.message
-                      ? 'border-rose-500/80 focus:border-rose-500 focus:ring-rose-500/20'
-                      : 'border-slate-800 hover:border-slate-700 focus:border-indigo-500 focus:ring-indigo-500/20'
-                  }`}
+                  autoComplete="name"
                 />
-                {errors.message && (
-                  <p className="text-xs text-rose-400 font-medium mt-1">
-                    • {errors.message}
-                  </p>
-                )}
+                <Input
+                  label="Email address"
+                  name="email"
+                  type="email"
+                  placeholder="you@college.edu"
+                  icon={Mail}
+                  value={formData.email}
+                  onChange={handleChange}
+                  error={errors.email}
+                  disabled={loading}
+                  autoComplete="email"
+                />
               </div>
 
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                className="w-full"
-                loading={loading}
-              >
-                <span>Submit Inquiry</span>
-                {!loading && <Send className="w-4 h-4 ml-1" />}
+              <Textarea
+                label="Message"
+                name="message"
+                placeholder="How can we help?"
+                value={formData.message}
+                onChange={handleChange}
+                error={errors.message}
+                disabled={loading}
+                maxLength={2000}
+              />
+
+              <Button type="submit" size="lg" className="w-full sm:w-auto" loading={loading}>
+                Send message
+                {!loading && <Send className="h-4 w-4" aria-hidden="true" />}
               </Button>
             </form>
           )}

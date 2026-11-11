@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { isValidHttpUrl } from '../utils/validators.js';
 
 /**
  * Sub-schema for individual team members
@@ -21,11 +22,6 @@ const teamMemberSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
-/**
- * URL validation regex pattern
- */
-const urlRegex = /^(https?:\/\/)([\da-z.-]+)\.([a-z.]{2,6})([/\w .~-]*)*\/?(\?.*)?$/i;
 
 /**
  * Hackathon Registration Schema
@@ -96,13 +92,19 @@ const hackathonRegistrationSchema = new mongoose.Schema(
       type: String,
       required: [true, 'PPT link is required'],
       trim: true,
-      match: [urlRegex, 'Please provide a valid URL for PPT (Google Drive / OneDrive)'],
+      validate: {
+        validator: isValidHttpUrl,
+        message: 'Please provide a valid URL for PPT (Google Drive / OneDrive)',
+      },
     },
     prototypeUrl: {
       type: String,
       required: [true, 'Prototype link is required'],
       trim: true,
-      match: [urlRegex, 'Please provide a valid URL for prototype (GitHub / Figma / live demo)'],
+      validate: {
+        validator: isValidHttpUrl,
+        message: 'Please provide a valid URL for prototype (GitHub / Figma / live demo)',
+      },
     },
     demoVideoUrl: {
       type: String,
@@ -110,7 +112,7 @@ const hackathonRegistrationSchema = new mongoose.Schema(
       validate: {
         validator: function (v) {
           if (!v || v.trim() === '') return true;
-          return urlRegex.test(v);
+          return isValidHttpUrl(v);
         },
         message: 'Please provide a valid URL for demo video (YouTube / Drive)',
       },

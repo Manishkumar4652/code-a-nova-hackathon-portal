@@ -1,230 +1,243 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight, Trophy, Check, UserPlus, MailCheck, LogIn, ClipboardList } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import {
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-  Users2,
-  Trophy,
-  Calendar,
-  Layers,
-  Code2,
-  CheckCircle,
-} from 'lucide-react';
 import Button from '../components/Button';
+import { EVENT, TRACKS, TIMELINE, PRIZES } from '../config/event';
+
+const HOW_IT_WORKS = [
+  { icon: UserPlus, title: 'Create an account', text: 'Name, email and a password.' },
+  { icon: MailCheck, title: 'Verify with OTP', text: 'Enter the 6-digit code we email you.' },
+  { icon: LogIn, title: 'Log in', text: 'Open your personal dashboard.' },
+  { icon: ClipboardList, title: 'Register your team', text: 'Add 1–5 members and your project links.' },
+];
+
+/** Perforated "ticket" summarising the event — the hero's visual anchor. */
+function EventTicket() {
+  const facts = [
+    ['Team size', `${EVENT.teamSize.min} – ${EVENT.teamSize.max} members`],
+    ['Tracks', `${TRACKS.length} to choose from`],
+    ['Submit', 'PPT + working prototype'],
+    ['Status', 'Registrations open'],
+  ];
+
+  return (
+    <div className="relative mx-auto w-full max-w-sm rotate-[1.5deg] transition-transform duration-500 ease-out hover:rotate-0 lg:ml-auto">
+      <div className="overflow-hidden rounded-xl2 bg-navy text-surface shadow-lift">
+        <div className="dot-grid-light relative px-7 pb-6 pt-7">
+          <p className="eyebrow !text-nova-300">Admit one team</p>
+          <p className="mt-3 font-display text-3xl font-bold leading-tight !text-surface">
+            Code<span className="text-nova-400">-a-</span>Nova
+            <span className="block text-[#AAB4C5]">Hackathon 2026</span>
+          </p>
+        </div>
+
+        {/* Perforation */}
+        <div className="relative">
+          <div className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-paper" aria-hidden="true" />
+          <div className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-paper" aria-hidden="true" />
+          <div className="mx-6 border-t-2 border-dashed border-white/20" />
+        </div>
+
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-5 px-7 pb-7 pt-6">
+          {facts.map(([k, v]) => (
+            <div key={k}>
+              <dt className="eyebrow !text-[#7F8CA3]">{k}</dt>
+              <dd className="mt-1 text-sm font-semibold text-surface">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 flex flex-col">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-20 pb-28 md:pt-32 md:pb-36 border-b border-slate-800/80">
-        {/* Ambient Gradient Glows */}
-        <div className="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-indigo-600/20 via-purple-600/20 to-pink-500/10 blur-[130px] rounded-full" />
-        <div className="pointer-events-none absolute top-12 left-10 w-72 h-72 bg-blue-600/10 blur-[100px] rounded-full" />
+    <div>
+      {/* Hero */}
+      <section className="relative overflow-hidden border-b border-line">
+        <div className="dot-grid absolute inset-0 opacity-60" aria-hidden="true" />
+        <div className="container-page relative grid items-center gap-14 py-16 sm:py-24 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-10">
+          <div className="animate-rise">
+            <p className="eyebrow inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface px-3 py-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-nova-600" aria-hidden="true" />
+              National collegiate hackathon · 2026
+            </p>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          {/* Top Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold uppercase tracking-wider mb-8 shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <span>National Collegiate Developer Hackathon</span>
-          </div>
+            <h1 className="mt-6 font-display text-[2.75rem] font-extrabold leading-[1.02] sm:text-6xl lg:text-[4.5rem]">
+              Build something
+              <br />
+              worth <span className="relative whitespace-nowrap text-nova-600">shipping.</span>
+            </h1>
 
-          {/* Heading */}
-          <h1 className="font-heading text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-[1.1] mb-6">
-            Code-a-Nova{' '}
-            <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Hackathon 2026
-            </span>
-          </h1>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">
+              Form a team of up to five, pick a track, and turn an idea into a working prototype. Register in minutes —
+              verified by email, tracked on your own dashboard.
+            </p>
 
-          {/* Subtitle */}
-          <p className="text-base sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed font-normal">
-            Build, collaborate, and compete with the brightest student engineers.
-            Showcase your prototypes, assemble your dream squad, and win exciting awards.
-          </p>
-
-          {/* Action CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
-            {isAuthenticated ? (
-              <Link to="/dashboard" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto shadow-indigo-500/20">
-                  <span>Go to Dashboard</span>
-                  <ArrowRight className="w-5 h-5 ml-1" />
-                </Button>
-              </Link>
-            ) : (
-              <>
-                <Link to="/signup" className="w-full sm:w-auto">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              {isAuthenticated ? (
+                <Link to="/dashboard">
                   <Button size="lg" className="w-full sm:w-auto">
-                    <span>Register Now</span>
-                    <ArrowRight className="w-5 h-5 ml-1" />
+                    Go to dashboard <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </Link>
-                <Link to="/login" className="w-full sm:w-auto">
-                  <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                    <span>Participant Login</span>
+              ) : (
+                <>
+                  <Link to="/signup">
+                    <Button size="lg" className="w-full sm:w-auto">
+                      Register now <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </Link>
+                  <Link to="/login">
+                    <Button size="lg" variant="outline" className="w-full sm:w-auto">
+                      Login
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+
+          <EventTicket />
+        </div>
+      </section>
+
+      {/* Tracks */}
+      <section className="border-b border-line py-20 sm:py-24" aria-labelledby="tracks-heading">
+        <div className="container-page grid gap-12 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
+          <div className="lg:sticky lg:top-28 lg:self-start">
+            <p className="eyebrow">Event highlights</p>
+            <h2 id="tracks-heading" className="mt-3 font-display text-3xl font-bold sm:text-4xl">
+              Six tracks. One goal: a prototype that works.
+            </h2>
+            <p className="mt-4 text-ink-muted">
+              Choose the track that fits your idea. Every entry is judged on execution, clarity and real-world impact.
+            </p>
+          </div>
+
+          <ul className="divide-y divide-line border-y border-line">
+            {TRACKS.map((t, i) => (
+              <li
+                key={t.name}
+                className="group grid grid-cols-[3rem_1fr] items-baseline gap-2 py-5 transition-colors duration-200 hover:bg-paper-2/60 sm:grid-cols-[4rem_1fr] sm:px-3"
+              >
+                <span className="font-mono text-sm text-nova-600">{String(i + 1).padStart(2, '0')}</span>
+                <div>
+                  <h3 className="font-display text-xl font-semibold">{t.name}</h3>
+                  <p className="mt-1 text-sm text-ink-muted">{t.blurb}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* Timeline */}
+      <section className="border-b border-line bg-paper-2/60 py-20 sm:py-24" aria-labelledby="timeline-heading">
+        <div className="container-page">
+          <p className="eyebrow">Timeline</p>
+          <h2 id="timeline-heading" className="mt-3 max-w-xl font-display text-3xl font-bold sm:text-4xl">
+            From sign-up to demo day
+          </h2>
+
+          <ol className="relative mt-12 grid gap-8 md:grid-cols-4 md:gap-6">
+            <div className="absolute left-[15px] top-2 hidden h-[calc(100%-1rem)] w-px bg-line-strong max-md:block" aria-hidden="true" />
+            <div className="absolute left-0 right-0 top-[15px] hidden h-px bg-line-strong md:block" aria-hidden="true" />
+            {TIMELINE.map((item) => (
+              <li key={item.step} className="relative pl-12 md:pl-0 md:pt-12">
+                <span className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-nova-600 bg-paper font-mono text-[11px] font-semibold text-nova-600">
+                  {item.step}
+                </span>
+                <p className="font-mono text-xs font-medium uppercase tracking-wider text-nova-700">{item.date}</p>
+                <h3 className="mt-2 font-display text-xl font-semibold">{item.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-muted">{item.text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* Prizes */}
+      <section className="border-b border-line py-20 sm:py-24" aria-labelledby="prizes-heading">
+        <div className="container-page">
+          <p className="eyebrow">Prizes</p>
+          <h2 id="prizes-heading" className="mt-3 max-w-xl font-display text-3xl font-bold sm:text-4xl">
+            Recognition that opens doors
+          </h2>
+
+          <div className="mt-12 grid gap-5 lg:grid-cols-[minmax(0,6fr)_minmax(0,3fr)_minmax(0,3fr)]">
+            {PRIZES.map((p) => (
+              <article
+                key={p.rank}
+                className={`flex flex-col rounded-xl2 p-7 transition-transform duration-300 ease-out hover:-translate-y-1 ${
+                  p.featured ? 'bg-navy text-surface shadow-lift' : 'card'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <p className={`eyebrow ${p.featured ? '!text-nova-300' : ''}`}>{p.rank}</p>
+                  <Trophy className={`h-5 w-5 ${p.featured ? 'text-nova-400' : 'text-nova-600'}`} aria-hidden="true" />
+                </div>
+                <p
+                  className={`mt-6 font-display font-extrabold leading-none ${
+                    p.featured ? 'text-6xl !text-surface' : 'text-4xl'
+                  }`}
+                >
+                  {p.amount}
+                </p>
+                <ul className={`mt-8 space-y-2.5 text-sm ${p.featured ? 'text-[#C9D1DF]' : 'text-ink-soft'}`}>
+                  {p.perks.map((perk) => (
+                    <li key={perk} className="flex items-start gap-2.5">
+                      <Check
+                        className={`mt-0.5 h-4 w-4 flex-shrink-0 ${p.featured ? 'text-nova-400' : 'text-ok'}`}
+                        aria-hidden="true"
+                      />
+                      {perk}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How it works + CTA */}
+      <section className="py-20 sm:py-24" aria-labelledby="how-heading">
+        <div className="container-page">
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+            <div>
+              <p className="eyebrow">How to register</p>
+              <h2 id="how-heading" className="mt-3 font-display text-3xl font-bold sm:text-4xl">
+                Four steps, about three minutes.
+              </h2>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link to={isAuthenticated ? '/hackathon/register' : '/signup'}>
+                  <Button size="lg" className="w-full sm:w-auto">
+                    {isAuthenticated ? 'Register your team' : 'Create your account'}
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </Link>
-              </>
-            )}
-          </div>
-
-          {/* Feature Highlights Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-20 max-w-4xl mx-auto">
-            <div className="glass-panel p-5 rounded-2xl text-left border border-slate-800/80">
-              <Users2 className="w-6 h-6 text-indigo-400 mb-2" />
-              <div className="font-heading font-bold text-white text-lg">1 to 5 Members</div>
-              <div className="text-xs text-slate-400 mt-1">Flexible solo or team entries</div>
-            </div>
-            <div className="glass-panel p-5 rounded-2xl text-left border border-slate-800/80">
-              <ShieldCheck className="w-6 h-6 text-purple-400 mb-2" />
-              <div className="font-heading font-bold text-white text-lg">Email OTP Verified</div>
-              <div className="text-xs text-slate-400 mt-1">Authentic participant security</div>
-            </div>
-            <div className="glass-panel p-5 rounded-2xl text-left border border-slate-800/80">
-              <Layers className="w-6 h-6 text-pink-400 mb-2" />
-              <div className="font-heading font-bold text-white text-lg">5 Innovation Tracks</div>
-              <div className="text-xs text-slate-400 mt-1">AI/ML, Web, Cloud, IoT, Security</div>
-            </div>
-            <div className="glass-panel p-5 rounded-2xl text-left border border-slate-800/80">
-              <Trophy className="w-6 h-6 text-amber-400 mb-2" />
-              <div className="font-heading font-bold text-white text-lg">Grand Awards</div>
-              <div className="text-xs text-slate-400 mt-1">Cash prizes, merch & internships</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Timeline Section */}
-      <section className="py-24 border-b border-slate-800/80 bg-[#020617]/50 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <div className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-2">
-              Roadmap
-            </div>
-            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-white">
-              Event Timeline & Milestones
-            </h2>
-            <p className="text-slate-400 text-sm mt-3">
-              Follow these core milestones from initial account verification to project demonstration.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="glass-card p-6 rounded-2xl relative border-t-2 border-t-indigo-500">
-              <div className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">Phase 01</div>
-              <h3 className="text-lg font-bold text-white mb-2">Account Registration</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Sign up with your credentials, verify your student identity via secure 6-digit OTP, and access your private dashboard.
-              </p>
-            </div>
-
-            <div className="glass-card p-6 rounded-2xl relative border-t-2 border-t-purple-500">
-              <div className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">Phase 02</div>
-              <h3 className="text-lg font-bold text-white mb-2">Team Assembly</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Form a squad of 1 to 5 members, select your target technology track, and submit project details.
-              </p>
-            </div>
-
-            <div className="glass-card p-6 rounded-2xl relative border-t-2 border-t-pink-500">
-              <div className="text-xs font-bold text-pink-400 uppercase tracking-wider mb-2">Phase 03</div>
-              <h3 className="text-lg font-bold text-white mb-2">Prototype Submission</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Provide your presentation deck, working prototype repository, and live demonstration links before the deadline.
-              </p>
-            </div>
-
-            <div className="glass-card p-6 rounded-2xl relative border-t-2 border-t-emerald-500">
-              <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">Phase 04</div>
-              <h3 className="text-lg font-bold text-white mb-2">Evaluation & Awards</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Expert industry jury review, project presentations, leaderboard rankings, and celebration of winning teams.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Prizes & Recognition */}
-      <section className="py-24 border-b border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <div className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-2">
-              Recognition
-            </div>
-            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-white">
-              Prizes & Opportunities
-            </h2>
-            <p className="text-slate-400 text-sm mt-3">
-              Recognizing outstanding creativity, engineering depth, and execution rigor.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div className="glass-card p-8 rounded-2xl text-center border border-slate-800 hover:border-indigo-500/40 transition-smooth">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-6 border border-indigo-500/20">
-                <Trophy className="w-7 h-7" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">Grand Champion</h3>
-              <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                Top overall project across all tracks with highest score in innovation and practical implementation.
-              </p>
-              <div className="text-xs text-indigo-400 font-semibold bg-indigo-500/10 py-1.5 px-3 rounded-lg inline-block">
-                Trophy + Cash Prize + Fast-Track Interview
               </div>
             </div>
 
-            <div className="glass-card p-8 rounded-2xl text-center border border-slate-800 hover:border-purple-500/40 transition-smooth">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 mb-6 border border-purple-500/20">
-                <Sparkles className="w-7 h-7" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">Track Winners</h3>
-              <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                Best-in-class solutions in each respective track: AI/ML, Web Dev, IoT, Cybersecurity, and Blockchain.
-              </p>
-              <div className="text-xs text-purple-400 font-semibold bg-purple-500/10 py-1.5 px-3 rounded-lg inline-block">
-                Track Awards + Certificates + Swag Kit
-              </div>
-            </div>
-
-            <div className="glass-card p-8 rounded-2xl text-center border border-slate-800 hover:border-emerald-500/40 transition-smooth">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-6 border border-emerald-500/20">
-                <Code2 className="w-7 h-7" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">Internship Consideration</h3>
-              <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                Direct consideration for full-stack developer internship roles with Code-a-Nova for top performers.
-              </p>
-              <div className="text-xs text-emerald-400 font-semibold bg-emerald-500/10 py-1.5 px-3 rounded-lg inline-block">
-                Internship Offers + Mentorship
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Footer Banner */}
-      <section className="py-20 relative overflow-hidden">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <div className="glass-panel p-10 sm:p-14 rounded-3xl border border-indigo-500/30 relative overflow-hidden shadow-2xl">
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent" />
-            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-white mb-4 relative z-10">
-              Ready to Showcase Your Skills?
-            </h2>
-            <p className="text-slate-400 text-sm max-w-lg mx-auto mb-8 relative z-10">
-              Join hundreds of enthusiastic developers. Register your account, verify via OTP, and register your hackathon team today.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
-              <Link to="/signup" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto">
-                  Create Your Account
-                </Button>
-              </Link>
-            </div>
+            <ol className="grid gap-4 sm:grid-cols-2">
+              {HOW_IT_WORKS.map(({ icon: Icon, title, text }, i) => (
+                <li key={title} className="card flex gap-4 p-5">
+                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-nova-50 text-nova-600">
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <p className="font-mono text-[11px] uppercase tracking-wider text-ink-muted">Step {i + 1}</p>
+                    <h3 className="mt-0.5 font-display text-lg font-semibold">{title}</h3>
+                    <p className="mt-1 text-sm text-ink-muted">{text}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
           </div>
         </div>
       </section>

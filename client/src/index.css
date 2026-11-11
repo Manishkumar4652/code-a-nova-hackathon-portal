@@ -2,49 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-paper font-sans text-ink antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight text-ink;
+  }
+
+  ::selection {
+    background: #ffdfd0;
+    color: #16181d;
+  }
+
+  :focus-visible {
+    outline: 2px solid #d4410f;
+    outline-offset: 2px;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #ece8dd;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #bdb6a3;
+    border-radius: 6px;
+    border: 2px solid #ece8dd;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #8f8873;
+  }
 }
 
-h1, h2, h3, .font-heading {
-  font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+@layer components {
+  /* Small mono label used above headings and for metadata */
+  .eyebrow {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted;
+  }
+
+  .card {
+    @apply rounded-xl2 border border-line bg-surface shadow-card;
+  }
+
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Faint dot grid for hero backgrounds */
+  .dot-grid {
+    background-image: radial-gradient(rgba(22, 24, 29, 0.12) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .dot-grid-light {
+    background-image: radial-gradient(rgba(255, 253, 248, 0.10) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .link {
+    @apply font-medium text-nova-600 underline decoration-nova-300 underline-offset-4 transition-colors duration-200 hover:text-nova-700 hover:decoration-nova-600;
+  }
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #030712;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #334155;
-}
-
-/* Glassmorphism helpers */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(51, 65, 85, 0.45);
-}
-
-.glass-card {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(51, 65, 85, 0.35);
-}
-
-/* Smooth cubic bezier transition */
-.transition-smooth {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-rise {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -60,6 +60,10 @@ export const authService = {
     const response = await api.get('/user/me');
     return response.data;
   },
+  updateProfile: async (profileData) => {
+    const response = await api.put('/user/update', profileData);
+    return response.data;
+  },
 };
 
 // Hackathon Registration API methods
@@ -72,12 +76,20 @@ export const hackathonService = {
     const response = await api.get('/hackathon/my-entry');
     return response.data;
   },
+  deleteEntry: async (id) => {
+    const response = await api.delete(`/hackathon/${id}`);
+    return response.data;
+  },
 };
 
 // Contact Form API methods
 export const contactService = {
   submitInquiry: async (inquiryData) => {
     const response = await api.post('/contact', inquiryData);
+    return response.data;
+  },
+  getInfo: async () => {
+    const response = await api.get('/contact/info');
     return response.data;
   },
 };

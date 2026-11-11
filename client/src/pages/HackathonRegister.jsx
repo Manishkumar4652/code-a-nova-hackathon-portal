@@ -1,28 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import {
+  User, Mail, Phone, FileText, Link2, Video, CheckCircle2, ArrowRight, Check,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { hackathonService } from '../services/api';
-import {
-  Code2,
-  User,
-  Mail,
-  Phone,
-  GraduationCap,
-  BookOpen,
-  Calendar,
-  Layers,
-  FileText,
-  Link2,
-  Video,
-  Users2,
-  CheckCircle2,
-  AlertCircle,
-  ArrowRight,
-  Sparkles,
-  ExternalLink,
-} from 'lucide-react';
+import { TRACK_NAMES, EVENT } from '../config/event';
+import { emailRegex, mobileRegex, nameRegex, isValidHttpUrl } from '../utils/validators';
 import Button from '../components/Button';
-import Input from '../components/Input';
+import Input, { Select } from '../components/Input';
 import Alert from '../components/Alert';
 import Loading from '../components/Loading';
 
@@ -40,6 +26,7 @@ const COLLEGES = [
   'Jadavpur University',
   'State Government Engineering College',
   'Autonomous Engineering College',
+  'Private University',
   'Other Institution / University',
 ];
 
@@ -65,38 +52,46 @@ const BRANCHES = [
 ];
 
 const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+const TEAM_SIZES = Array.from({ length: EVENT.teamSize.max }, (_, i) => i + 1);
 
-const DOMAINS = [
-  'AI / Machine Learning',
-  'Full-Stack Web Development',
-  'Internet of Things (IoT)',
-  'Cyber Security & Privacy',
-  'Blockchain / Web3',
-  'Cloud & DevOps Solutions',
+const SECTIONS = [
+  { id: 'personal', label: 'Personal details' },
+  { id: 'academic', label: 'Academic details' },
+  { id: 'project', label: 'Project & links' },
+  { id: 'team', label: 'Team' },
 ];
 
-const urlRegex = /^(https?:\/\/)([\da-z.-]+)\.([a-z.]{2,6})([/\w .~-]*)*\/?(\?.*)?$/i;
-const mobileRegex = /^[6-9]\d{9}$/;
-const nameRegex = /^[a-zA-Z\s]+$/;
-const emailRegex = /^\S+@\S+\.\S+$/;
+/** Numbered section card wrapper. */
+function Section({ id, index, title, children }) {
+  return (
+    <section id={id} aria-labelledby={`${id}-title`} className="card scroll-mt-24 p-6 sm:p-8">
+      <div className="mb-6 flex items-center gap-3 border-b border-line pb-4">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-navy font-mono text-xs font-semibold text-surface">
+          {index}
+        </span>
+        <h2 id={`${id}-title`} className="font-display text-xl font-bold">
+          {title}
+        </h2>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export default function HackathonRegister() {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   const [checkingExisting, setCheckingExisting] = useState(true);
-  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [existingEntry, setExistingEntry] = useState(null);
 
-  // Form State
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
     mobile: '',
-    college: COLLEGES[0],
-    course: COURSES[0],
-    branch: BRANCHES[0],
-    year: YEARS[2], // Default 3rd Year
-    domain: DOMAINS[0],
+    college: '',
+    course: '',
+    branch: '',
+    year: '',
+    domain: '',
     projectName: '',
     pptUrl: '',
     prototypeUrl: '',
@@ -110,151 +105,104 @@ export default function HackathonRegister() {
   const [submitting, setSubmitting] = useState(false);
   const [successResult, setSuccessResult] = useState(null);
 
-  // Sync user fullName if user context finishes loading
+  // Pre-fill the name once the auth context has loaded
   useEffect(() => {
-    if (user?.fullName && !formData.fullName) {
-      setFormData((prev) => ({ ...prev, fullName: user.fullName }));
+    if (user?.fullName) {
+      setFormData((prev) => (prev.fullName ? prev : { ...prev, fullName: user.fullName }));
     }
   }, [user]);
 
-  // Check if user has already submitted a registration
+  // If an entry already exists, don't show the form again
   useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const res = await hackathonService.getMyEntry();
-        if (res.status === 'success' && res.hasRegistered && res.entry) {
-          setAlreadyRegistered(true);
-          setExistingEntry(res.entry);
-        }
-      } catch (err) {
-        // Not registered or network check completed
-      } finally {
-        setCheckingExisting(false);
-      }
-    };
-
-    checkStatus();
+    hackathonService
+      .getMyEntry()
+      .then((res) => {
+        if (res.hasRegistered && res.entry) setExistingEntry(res.entry);
+      })
+      .catch(() => {})
+      .finally(() => setCheckingExisting(false));
   }, []);
 
-  // Update dynamic team members array when teamSize changes
-  const handleTeamSizeChange = (newSize) => {
-    const parsed = parseInt(newSize, 10);
-    const requiredMembers = parsed - 1;
-
+  /** Grow / shrink the member rows to match the chosen team size (keeps what was typed). */
+  const handleTeamSizeChange = (size) => {
     setFormData((prev) => {
-      const currentMembers = [...prev.teamMembers];
-      let updatedMembers = [];
-
-      if (parsed === 1) {
-        updatedMembers = [];
-      } else if (currentMembers.length < requiredMembers) {
-        // Expand preserving existing
-        updatedMembers = [...currentMembers];
-        while (updatedMembers.length < requiredMembers) {
-          updatedMembers.push({ name: '', email: '' });
-        }
-      } else {
-        // Truncate to new required size
-        updatedMembers = currentMembers.slice(0, requiredMembers);
-      }
-
-      return {
-        ...prev,
-        teamSize: parsed,
-        teamMembers: updatedMembers,
-      };
+      const needed = size - 1;
+      const members = prev.teamMembers.slice(0, needed);
+      while (members.length < needed) members.push({ name: '', email: '' });
+      return { ...prev, teamSize: size, teamMembers: members };
     });
-
-    if (errors.teamSize) setErrors((prev) => ({ ...prev, teamSize: '' }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((k) => k.startsWith('member_') && delete next[k]);
+      return next;
+    });
   };
 
   const handleMemberChange = (index, field, value) => {
     setFormData((prev) => {
-      const updated = [...prev.teamMembers];
-      updated[index] = { ...updated[index], [field]: value };
-      return { ...prev, teamMembers: updated };
+      const members = [...prev.teamMembers];
+      members[index] = { ...members[index], [field]: value };
+      return { ...prev, teamMembers: members };
     });
-
     const key = `member_${index}_${field}`;
-    if (errors[key]) {
-      setErrors((prev) => ({ ...prev, [key]: '' }));
-    }
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: '' }));
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    // Mobile accepts digits only
+    const next = name === 'mobile' ? value.replace(/\D/g, '').slice(0, 10) : value;
+    setFormData((prev) => ({ ...prev, [name]: next }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
     if (serverError) setServerError('');
   };
 
   const validate = () => {
-    const newErrors = {};
+    const e = {};
+    const f = formData;
 
-    // Personal
-    if (!formData.fullName.trim() || formData.fullName.trim().length < 3) {
-      newErrors.fullName = 'Full name must be at least 3 characters long.';
-    } else if (!nameRegex.test(formData.fullName.trim())) {
-      newErrors.fullName = 'Full name can only contain letters and spaces.';
+    if (f.fullName.trim().length < 3) e.fullName = 'Use at least 3 characters';
+    else if (!nameRegex.test(f.fullName.trim())) e.fullName = 'Letters and spaces only';
+
+    if (!f.mobile) e.mobile = 'Mobile number is required';
+    else if (!mobileRegex.test(f.mobile)) e.mobile = 'Enter a valid 10-digit Indian mobile number';
+
+    if (!f.college) e.college = 'Select your college';
+    if (!f.course) e.course = 'Select your course';
+    if (!f.branch) e.branch = 'Select your branch';
+    if (!f.year) e.year = 'Select your year of study';
+    if (!f.domain) e.domain = 'Select a track';
+
+    if (f.projectName.trim().length < 5) e.projectName = 'Project name needs at least 5 characters';
+
+    if (!f.pptUrl.trim()) e.pptUrl = 'PPT link is required';
+    else if (!isValidHttpUrl(f.pptUrl)) e.pptUrl = 'Enter a valid link starting with https://';
+
+    if (!f.prototypeUrl.trim()) e.prototypeUrl = 'Prototype link is required';
+    else if (!isValidHttpUrl(f.prototypeUrl)) e.prototypeUrl = 'Enter a valid link starting with https://';
+
+    if (f.demoVideoUrl.trim() && !isValidHttpUrl(f.demoVideoUrl)) {
+      e.demoVideoUrl = 'Enter a valid link starting with https://';
     }
 
-    if (!formData.mobile.trim()) {
-      newErrors.mobile = 'Mobile number is required.';
-    } else if (!mobileRegex.test(formData.mobile.trim())) {
-      newErrors.mobile = 'Please provide a valid 10-digit Indian mobile number (e.g. 9876543210).';
-    }
+    f.teamMembers.forEach((m, i) => {
+      if (m.name.trim().length < 2) e[`member_${i}_name`] = 'Enter the member’s name';
+      if (!emailRegex.test(m.email.trim())) e[`member_${i}_email`] = 'Enter a valid email';
+    });
 
-    // Academic
-    if (!formData.college) newErrors.college = 'College selection is required.';
-    if (!formData.course) newErrors.course = 'Course selection is required.';
-    if (!formData.branch) newErrors.branch = 'Branch selection is required.';
-    if (!formData.year) newErrors.year = 'Year of study is required.';
-
-    // Project
-    if (!formData.domain) newErrors.domain = 'Domain track selection is required.';
-
-    if (!formData.projectName.trim() || formData.projectName.trim().length < 5) {
-      newErrors.projectName = 'Project name must be at least 5 characters long.';
-    }
-
-    if (!formData.pptUrl.trim()) {
-      newErrors.pptUrl = 'Shareable PPT presentation link is required.';
-    } else if (!urlRegex.test(formData.pptUrl.trim())) {
-      newErrors.pptUrl = 'Please provide a valid URL for your presentation (e.g. https://drive.google.com/...).';
-    }
-
-    if (!formData.prototypeUrl.trim()) {
-      newErrors.prototypeUrl = 'Prototype URL is required.';
-    } else if (!urlRegex.test(formData.prototypeUrl.trim())) {
-      newErrors.prototypeUrl = 'Please provide a valid URL for your prototype (GitHub / Figma / Live demo).';
-    }
-
-    if (formData.demoVideoUrl && formData.demoVideoUrl.trim() !== '') {
-      if (!urlRegex.test(formData.demoVideoUrl.trim())) {
-        newErrors.demoVideoUrl = 'Please provide a valid URL for demo video (YouTube / Google Drive).';
-      }
-    }
-
-    // Dynamic Team Members validation
-    if (formData.teamSize > 1) {
-      formData.teamMembers.forEach((member, i) => {
-        if (!member.name || member.name.trim().length < 2) {
-          newErrors[`member_${i}_name`] = `Member #${i + 2} name must be at least 2 characters.`;
-        }
-        if (!member.email || !emailRegex.test(member.email.trim())) {
-          newErrors[`member_${i}_email`] = `Member #${i + 2} has an invalid email format.`;
-        }
-      });
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(e);
+    return e;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validate()) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handleSubmit = async (ev) => {
+    ev.preventDefault();
+    const found = validate();
+    const firstKey = Object.keys(found)[0];
+    if (firstKey) {
+      // Jump to the first invalid field so nothing is hidden below the fold
+      const el = document.getElementsByName(firstKey)[0] || document.getElementById(firstKey);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.focus?.({ preventScroll: true });
       return;
     }
 
@@ -262,148 +210,117 @@ export default function HackathonRegister() {
     setServerError('');
 
     try {
-      const payload = {
+      const response = await hackathonService.register({
+        ...formData,
         fullName: formData.fullName.trim(),
-        mobile: formData.mobile.trim(),
-        college: formData.college,
-        course: formData.course,
-        branch: formData.branch,
-        year: formData.year,
-        domain: formData.domain,
         projectName: formData.projectName.trim(),
         pptUrl: formData.pptUrl.trim(),
         prototypeUrl: formData.prototypeUrl.trim(),
         demoVideoUrl: formData.demoVideoUrl.trim(),
-        teamSize: formData.teamSize,
-        teamMembers: formData.teamMembers,
-      };
-
-      const response = await hackathonService.register(payload);
+      });
 
       if (response.status === 'success') {
-        setSuccessResult({
-          registration: response.registration,
-          emailSent: response.emailSent,
-          emailConfigured: response.emailConfigured,
-        });
+        setSuccessResult(response);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err) {
-      const message =
+      setServerError(
         err.response?.data?.message ||
-        (err.code === 'ERR_NETWORK' || !err.response
-          ? 'Cannot connect to backend server. Please verify the backend is running on http://localhost:5000.'
-          : 'Registration failed. Please check your submission details.');
-      setServerError(message);
+          (!err.response
+            ? 'Cannot reach the server. Check your connection and try again.'
+            : 'Registration failed. Please review your details and try again.')
+      );
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (checkingExisting) {
-    return <Loading fullScreen message="Checking registration status..." size="lg" />;
-  }
+  if (checkingExisting) return <Loading fullScreen message="Checking registration status" size="lg" />;
 
-  // View: Already registered
-  if (alreadyRegistered && existingEntry) {
+  /* ---------- Already registered ---------- */
+  if (existingEntry) {
     return (
-      <div className="min-h-screen bg-[#030712] text-slate-100 py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto glass-panel p-8 sm:p-10 rounded-3xl border border-indigo-500/30 text-center space-y-6">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
-            <CheckCircle2 className="w-10 h-10" />
-          </div>
-          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-white">
-            You Are Already Registered!
-          </h1>
-          <p className="text-slate-400 text-sm max-w-lg mx-auto">
-            You have already submitted your official project entry (<strong>{existingEntry.projectName}</strong>) for the Code-a-Nova Hackathon 2026.
+      <div className="container-page py-16 sm:py-24">
+        <div className="card mx-auto max-w-xl p-8 text-center sm:p-12">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-ok-soft text-ok">
+            <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
+          </span>
+          <h1 className="mt-5 font-display text-3xl font-bold">You’re already registered</h1>
+          <p className="mt-3 text-ink-muted">
+            Your entry <strong className="text-ink">{existingEntry.projectName}</strong> is on file. You can review it —
+            or withdraw it — from your dashboard.
           </p>
-          <div className="pt-2">
-            <Link to="/dashboard">
-              <Button size="lg">Go to Dashboard to View Submission</Button>
-            </Link>
-          </div>
+          <Link to="/dashboard" className="mt-8 inline-block">
+            <Button size="lg">
+              Go to dashboard <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </Link>
         </div>
       </div>
     );
   }
 
-  // View: Successful Submission Screen
+  /* ---------- Success ---------- */
   if (successResult) {
     const reg = successResult.registration;
-    return (
-      <div className="min-h-screen bg-[#030712] text-slate-100 py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto glass-panel p-8 sm:p-12 rounded-3xl border border-emerald-500/40 shadow-2xl relative overflow-hidden">
-          <div className="pointer-events-none absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 blur-[100px] rounded-full" />
+    const mailOk = successResult.emailConfigured && successResult.emailSent;
+    const mailFailed = successResult.emailConfigured && !successResult.emailSent;
 
-          {/* Success Banner */}
-          <div className="text-center space-y-3 mb-8">
-            <div className="inline-flex p-3 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-              <CheckCircle2 className="w-10 h-10" />
-            </div>
-            <h1 className="font-heading text-3xl sm:text-4xl font-extrabold text-white">
-              Registration Successful!
-            </h1>
-            <p className="text-sm text-slate-300 max-w-md mx-auto">
-              Your hackathon entry has been officially saved and recorded in the Code-a-Nova registry.
+    return (
+      <div className="container-page py-14 sm:py-20">
+        <div className="mx-auto max-w-2xl animate-rise">
+          <div className="text-center">
+            <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-ok text-white shadow-card">
+              <Check className="h-8 w-8" strokeWidth={3} aria-hidden="true" />
+            </span>
+            <p className="eyebrow mt-6 !text-ok">Registration confirmed</p>
+            <h1 className="mt-2 font-display text-4xl font-extrabold">You’re in.</h1>
+            <p className="mx-auto mt-3 max-w-md text-ink-muted">
+              Your entry has been saved. Here’s what we have on record for your team.
             </p>
           </div>
 
-          {/* Email Delivery Status Banner */}
-          <div className="mb-8">
-            {successResult.emailConfigured && successResult.emailSent ? (
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                <span>
-                  Official confirmation email dispatched from <strong>Code-a-Nova</strong> to <strong>{user?.email}</strong>.
-                </span>
-              </div>
-            ) : (
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
-                <span>
-                  Registration recorded in database. Confirmation email could not be sent (SMTP service unconfigured in environment).
-                </span>
-              </div>
+          <div className="mt-8">
+            {mailOk && (
+              <Alert type="success" message={<>Confirmation sent from <strong>Code-a-Nova</strong> to <strong>{user?.email}</strong>.</>} />
+            )}
+            {mailFailed && (
+              <Alert type="warning" message="Your registration is saved, but we couldn’t send the confirmation email. You can view everything on your dashboard." />
+            )}
+            {!successResult.emailConfigured && (
+              <Alert type="info" message="Your registration is saved. Email delivery isn’t configured on this server yet." />
             )}
           </div>
 
-          {/* Summary Card */}
-          <div className="glass-card p-6 sm:p-8 rounded-2xl border border-slate-800 space-y-4 mb-8">
-            <h3 className="font-heading font-bold text-lg text-white border-b border-slate-800 pb-3">
-              Submission Summary
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
+          <div className="card mt-6 p-6 sm:p-8">
+            <dl className="grid gap-5 sm:grid-cols-2">
               <div>
-                <span className="text-slate-400 block text-xs">Project Name</span>
-                <strong className="text-white font-semibold text-base">{reg.projectName}</strong>
+                <dt className="eyebrow">Project</dt>
+                <dd className="mt-1 font-display text-xl font-bold">{reg.projectName}</dd>
               </div>
               <div>
-                <span className="text-slate-400 block text-xs">Domain / Track</span>
-                <span className="text-indigo-400 font-semibold">{reg.domain}</span>
+                <dt className="eyebrow">Track</dt>
+                <dd className="mt-1 font-semibold">{reg.domain}</dd>
               </div>
               <div>
-                <span className="text-slate-400 block text-xs">Lead Participant</span>
-                <span className="text-white font-medium">{reg.fullName}</span>
+                <dt className="eyebrow">Team lead</dt>
+                <dd className="mt-1 font-semibold">{reg.fullName}</dd>
               </div>
               <div>
-                <span className="text-slate-400 block text-xs">Team Composition</span>
-                <span className="text-white font-medium">
-                  {reg.teamSize} {reg.teamSize === 1 ? 'Member (Solo)' : 'Members'}
-                </span>
+                <dt className="eyebrow">Team size</dt>
+                <dd className="mt-1 font-semibold">{reg.teamSize} {reg.teamSize === 1 ? '(solo)' : 'members'}</dd>
               </div>
-            </div>
+            </dl>
 
-            {reg.teamMembers && reg.teamMembers.length > 0 && (
-              <div className="pt-3 border-t border-slate-800/80">
-                <span className="text-xs text-slate-400 block mb-2 font-semibold">Additional Team Members:</span>
-                <ul className="space-y-1 text-xs text-slate-300">
-                  {reg.teamMembers.map((m, idx) => (
-                    <li key={idx} className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                      <span>{m.name}</span>
-                      <span className="text-slate-500">({m.email})</span>
+            {reg.teamMembers?.length > 0 && (
+              <div className="mt-6 border-t border-line pt-5">
+                <p className="eyebrow">Team members</p>
+                <ul className="mt-3 space-y-2 text-sm">
+                  {reg.teamMembers.map((m, i) => (
+                    <li key={i} className="flex flex-wrap items-center gap-x-2">
+                      <span className="font-semibold">{m.name}</span>
+                      <span className="text-ink-muted">{m.email}</span>
                     </li>
                   ))}
                 </ul>
@@ -411,12 +328,10 @@ export default function HackathonRegister() {
             )}
           </div>
 
-          {/* Action button */}
-          <div className="flex justify-center">
+          <div className="mt-8 text-center">
             <Link to="/dashboard">
-              <Button size="lg" className="gap-2">
-                <span>View Dashboard</span>
-                <ArrowRight className="w-4 h-4" />
+              <Button size="lg">
+                Go to dashboard <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Button>
             </Link>
           </div>
@@ -425,211 +340,117 @@ export default function HackathonRegister() {
     );
   }
 
+  /* ---------- Form ---------- */
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold uppercase tracking-wider mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Official Event Registration</span>
-          </div>
-          <h1 className="font-heading text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Hackathon Registration Form
-          </h1>
-          <p className="text-slate-400 text-xs sm:text-sm mt-2">
-            Please fill out all mandatory fields accurately. Once submitted, your entry will be locked and confirmed.
-          </p>
-        </div>
+    <div className="container-page py-10 sm:py-14">
+      <header className="max-w-2xl">
+        <p className="eyebrow">Official registration</p>
+        <h1 className="mt-3 font-display text-4xl font-extrabold sm:text-5xl">Register your team</h1>
+        <p className="mt-3 text-ink-muted">
+          Fields marked optional can be skipped; everything else is required. Each account can submit one registration.
+        </p>
+      </header>
 
-        {/* Server Error Alert */}
-        {serverError && (
-          <Alert type="error" message={serverError} onClose={() => setServerError('')} />
-        )}
+      <div className="mt-10 grid gap-10 lg:grid-cols-[200px_minmax(0,1fr)]">
+        {/* Section rail */}
+        <nav aria-label="Form sections" className="hidden lg:block">
+          <ol className="sticky top-28 space-y-1 border-l border-line">
+            {SECTIONS.map((s, i) => (
+              <li key={s.id}>
+                <a
+                  href={`#${s.id}`}
+                  className="-ml-px block border-l-2 border-transparent py-2 pl-4 text-sm font-medium text-ink-muted transition-colors hover:border-nova-600 hover:text-ink"
+                >
+                  <span className="mr-2 font-mono text-xs text-nova-600">{String(i + 1).padStart(2, '0')}</span>
+                  {s.label}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
 
-        {/* Main Form */}
-        <form onSubmit={handleSubmit} className="space-y-8" noValidate>
-          {/* Section 1: Lead Participant Details */}
-          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-5">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800/80">
-              <User className="w-5 h-5 text-indigo-400" />
-              <h2 className="font-heading text-lg font-bold text-white">
-                1. Personal Details (Lead / Submitter)
-              </h2>
-            </div>
+        <form onSubmit={handleSubmit} className="max-w-3xl space-y-6" noValidate>
+          {serverError && <Alert type="error" message={serverError} onClose={() => setServerError('')} />}
+          {Object.keys(errors).some((k) => errors[k]) && (
+            <Alert type="warning" message="Some fields need attention — they’re marked below." />
+          )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <Section id="personal" index={1} title="Personal details">
+            <div className="grid gap-5 sm:grid-cols-2">
               <Input
-                label="Full Name *"
+                label="Full name"
                 name="fullName"
                 icon={User}
                 value={formData.fullName}
                 onChange={handleChange}
                 error={errors.fullName}
                 disabled={submitting}
-                placeholder="Your official full name"
-                helperText="Minimum 3 characters, letters only"
+                autoComplete="name"
+                helperText="Letters only, minimum 3 characters"
               />
-
               <Input
-                label="Registered Email (Account Verified)"
+                label="Email address"
                 name="email"
                 type="email"
                 icon={Mail}
                 value={user?.email || ''}
-                disabled={true}
-                helperText="Pre-filled from your authenticated session (Read-only)"
+                readOnly
+                disabled
+                helperText="From your verified account"
               />
-
               <div className="sm:col-span-2">
                 <Input
-                  label="Mobile Number *"
+                  label="Mobile number"
                   name="mobile"
                   type="tel"
+                  inputMode="numeric"
                   icon={Phone}
                   value={formData.mobile}
                   onChange={handleChange}
                   error={errors.mobile}
                   disabled={submitting}
-                  placeholder="10-digit Indian mobile number"
-                  helperText="10 digits starting with 6, 7, 8, or 9"
+                  placeholder="9876543210"
+                  autoComplete="tel-national"
+                  helperText="10-digit Indian mobile number"
                 />
               </div>
             </div>
-          </div>
+          </Section>
 
-          {/* Section 2: Academic Details */}
-          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-5">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800/80">
-              <GraduationCap className="w-5 h-5 text-purple-400" />
-              <h2 className="font-heading text-lg font-bold text-white">
-                2. Academic Details
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="sm:col-span-2 space-y-1.5">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  College / Institution Name *
-                </label>
-                <select
-                  name="college"
-                  value={formData.college}
-                  onChange={handleChange}
-                  disabled={submitting}
-                  className="w-full rounded-xl bg-slate-900/80 border border-slate-800 text-slate-100 text-sm p-3 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-smooth"
-                >
-                  {COLLEGES.map((c) => (
-                    <option key={c} value={c} className="bg-slate-900 text-white">
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                {errors.college && <p className="text-xs text-rose-400">• {errors.college}</p>}
+          <Section id="academic" index={2} title="Academic details">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <Select label="College name" name="college" placeholder="Select your college" options={COLLEGES}
+                  value={formData.college} onChange={handleChange} error={errors.college} disabled={submitting} />
               </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Course Degree *
-                </label>
-                <select
-                  name="course"
-                  value={formData.course}
-                  onChange={handleChange}
-                  disabled={submitting}
-                  className="w-full rounded-xl bg-slate-900/80 border border-slate-800 text-slate-100 text-sm p-3 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-smooth"
-                >
-                  {COURSES.map((c) => (
-                    <option key={c} value={c} className="bg-slate-900 text-white">
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Branch / Department *
-                </label>
-                <select
-                  name="branch"
-                  value={formData.branch}
-                  onChange={handleChange}
-                  disabled={submitting}
-                  className="w-full rounded-xl bg-slate-900/80 border border-slate-800 text-slate-100 text-sm p-3 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-smooth"
-                >
-                  {BRANCHES.map((b) => (
-                    <option key={b} value={b} className="bg-slate-900 text-white">
-                      {b}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="sm:col-span-2 space-y-1.5">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Year of Study *
-                </label>
-                <select
-                  name="year"
-                  value={formData.year}
-                  onChange={handleChange}
-                  disabled={submitting}
-                  className="w-full rounded-xl bg-slate-900/80 border border-slate-800 text-slate-100 text-sm p-3 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-smooth"
-                >
-                  {YEARS.map((y) => (
-                    <option key={y} value={y} className="bg-slate-900 text-white">
-                      {y}
-                    </option>
-                  ))}
-                </select>
+              <Select label="Course" name="course" placeholder="Select course" options={COURSES}
+                value={formData.course} onChange={handleChange} error={errors.course} disabled={submitting} />
+              <Select label="Branch" name="branch" placeholder="Select branch" options={BRANCHES}
+                value={formData.branch} onChange={handleChange} error={errors.branch} disabled={submitting} />
+              <div className="sm:col-span-2">
+                <Select label="Year of study" name="year" placeholder="Select year" options={YEARS}
+                  value={formData.year} onChange={handleChange} error={errors.year} disabled={submitting} />
               </div>
             </div>
-          </div>
+          </Section>
 
-          {/* Section 3: Project Submission Details */}
-          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-5">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800/80">
-              <Code2 className="w-5 h-5 text-pink-400" />
-              <h2 className="font-heading text-lg font-bold text-white">
-                3. Project Details & Links
-              </h2>
-            </div>
-
+          <Section id="project" index={3} title="Project & links">
             <div className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Technology Track / Domain *
-                </label>
-                <select
-                  name="domain"
-                  value={formData.domain}
-                  onChange={handleChange}
-                  disabled={submitting}
-                  className="w-full rounded-xl bg-slate-900/80 border border-slate-800 text-slate-100 text-sm p-3 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-smooth"
-                >
-                  {DOMAINS.map((d) => (
-                    <option key={d} value={d} className="bg-slate-900 text-white">
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
+              <Select label="Domain / track" name="domain" placeholder="Select a track" options={TRACK_NAMES}
+                value={formData.domain} onChange={handleChange} error={errors.domain} disabled={submitting} />
               <Input
-                label="Project Title *"
+                label="Project name"
                 name="projectName"
                 icon={FileText}
                 value={formData.projectName}
                 onChange={handleChange}
                 error={errors.projectName}
                 disabled={submitting}
-                placeholder="e.g. Decentralized Health Verification System"
+                placeholder="e.g. Rural Health Triage Assistant"
                 helperText="Minimum 5 characters"
               />
-
               <Input
-                label="Presentation Deck Link (PPT / Slide Deck) *"
+                label="PPT link"
                 name="pptUrl"
                 type="url"
                 icon={Link2}
@@ -637,12 +458,11 @@ export default function HackathonRegister() {
                 onChange={handleChange}
                 error={errors.pptUrl}
                 disabled={submitting}
-                placeholder="https://drive.google.com/file/d/..."
-                helperText="Shareable Google Drive or OneDrive link with view access"
+                placeholder="https://drive.google.com/…"
+                helperText="Google Drive or OneDrive link with view access"
               />
-
               <Input
-                label="Working Prototype Link (GitHub / Figma / Live Demo) *"
+                label="Prototype link"
                 name="prototypeUrl"
                 type="url"
                 icon={Link2}
@@ -650,12 +470,12 @@ export default function HackathonRegister() {
                 onChange={handleChange}
                 error={errors.prototypeUrl}
                 disabled={submitting}
-                placeholder="https://github.com/your-username/project-repo"
-                helperText="GitHub repository, Figma design prototype, or live URL"
+                placeholder="https://github.com/you/project"
+                helperText="GitHub repository, Figma file or live demo"
               />
-
               <Input
-                label="Demo Video Link (Optional)"
+                label="Demo video link"
+                optional
                 name="demoVideoUrl"
                 type="url"
                 icon={Video}
@@ -663,110 +483,86 @@ export default function HackathonRegister() {
                 onChange={handleChange}
                 error={errors.demoVideoUrl}
                 disabled={submitting}
-                placeholder="https://youtube.com/watch?v=... or Drive link"
-                helperText="Optional 2-3 minute demonstration video"
+                placeholder="https://youtube.com/watch?v=…"
+                helperText="YouTube or Drive link"
               />
             </div>
-          </div>
+          </Section>
 
-          {/* Section 4: Dynamic Team Composition */}
-          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-5">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800/80">
-              <Users2 className="w-5 h-5 text-amber-400" />
-              <h2 className="font-heading text-lg font-bold text-white">
-                4. Team Size & Member Management
-              </h2>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Select Total Team Size (Including Leader) *
-                </label>
-                <div className="grid grid-cols-5 gap-2 sm:gap-4 max-w-lg">
-                  {[1, 2, 3, 4, 5].map((size) => (
+          <Section id="team" index={4} title="Team">
+            <fieldset>
+              <legend className="text-[13px] font-semibold text-ink">Team size (including you)</legend>
+              <div className="mt-2 grid max-w-md grid-cols-5 gap-2" role="radiogroup" aria-label="Team size">
+                {TEAM_SIZES.map((size) => {
+                  const active = formData.teamSize === size;
+                  return (
                     <button
                       key={size}
                       type="button"
+                      role="radio"
+                      aria-checked={active}
                       onClick={() => handleTeamSizeChange(size)}
                       disabled={submitting}
-                      className={`py-3 rounded-xl font-bold text-sm transition-smooth border ${
-                        formData.teamSize === size
-                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-600/30 ring-2 ring-indigo-400'
-                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white'
+                      className={`rounded-[10px] border py-3 font-mono text-sm font-semibold transition-all duration-200 ${
+                        active
+                          ? 'border-ink bg-ink text-surface shadow-card'
+                          : 'border-line-strong bg-surface text-ink hover:border-ink'
                       }`}
                     >
-                      {size === 1 ? '1 (Solo)' : size}
+                      {size}
                     </button>
-                  ))}
-                </div>
-                <p className="text-xs text-slate-400 mt-2">
-                  {formData.teamSize === 1
-                    ? 'Solo entry — You are the sole participant. No additional member fields required.'
-                    : `Team of ${formData.teamSize} — Requires exactly ${formData.teamSize - 1} additional member(s).`}
-                </p>
+                  );
+                })}
               </div>
+              <p className="mt-2 text-xs text-ink-muted">
+                {formData.teamSize === 1
+                  ? 'Solo entry — no extra member details needed.'
+                  : `Add details for ${formData.teamSize - 1} teammate${formData.teamSize - 1 > 1 ? 's' : ''} below.`}
+              </p>
+            </fieldset>
 
-              {/* Dynamic Additional Member Fields */}
-              {formData.teamSize > 1 && (
-                <div className="space-y-4 pt-4 border-t border-slate-800/80">
-                  <div className="text-xs font-bold uppercase tracking-wider text-indigo-300">
-                    Additional Team Members Information
-                  </div>
-
-                  {formData.teamMembers.map((member, idx) => (
-                    <div
-                      key={idx}
-                      className="glass-card p-5 rounded-2xl border border-slate-800 space-y-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-300">
-                          Team Member #{idx + 2}
-                        </span>
-                        <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
-                          Partner {idx + 1}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Input
-                          label="Full Name *"
-                          placeholder="Member's full name"
-                          icon={User}
-                          value={member.name}
-                          onChange={(e) => handleMemberChange(idx, 'name', e.target.value)}
-                          error={errors[`member_${idx}_name`]}
-                          disabled={submitting}
-                        />
-                        <Input
-                          label="Email Address *"
-                          type="email"
-                          placeholder="member@example.com"
-                          icon={Mail}
-                          value={member.email}
-                          onChange={(e) => handleMemberChange(idx, 'email', e.target.value)}
-                          error={errors[`member_${idx}_email`]}
-                          disabled={submitting}
-                        />
-                      </div>
+            {formData.teamMembers.length > 0 && (
+              <div className="mt-6 space-y-4 border-t border-line pt-6">
+                {formData.teamMembers.map((member, idx) => (
+                  <div key={idx} className="rounded-[10px] border border-line bg-paper p-5">
+                    <p className="eyebrow mb-4">Member {idx + 2}</p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Input
+                        label="Member name"
+                        name={`member_${idx}_name`}
+                        icon={User}
+                        placeholder="Full name"
+                        value={member.name}
+                        onChange={(e) => handleMemberChange(idx, 'name', e.target.value)}
+                        error={errors[`member_${idx}_name`]}
+                        disabled={submitting}
+                      />
+                      <Input
+                        label="Member email"
+                        name={`member_${idx}_email`}
+                        type="email"
+                        icon={Mail}
+                        placeholder="member@college.edu"
+                        value={member.email}
+                        onChange={(e) => handleMemberChange(idx, 'email', e.target.value)}
+                        error={errors[`member_${idx}_email`]}
+                        disabled={submitting}
+                      />
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
 
-          {/* Submit Button */}
-          <div className="pt-2">
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              loading={submitting}
-              className="w-full py-4 text-base shadow-xl shadow-indigo-600/20"
-            >
-              <span>Submit Official Hackathon Registration</span>
-              {!submitting && <ArrowRight className="w-5 h-5 ml-2" />}
+          <div className="flex flex-col-reverse items-stretch gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="flex items-start gap-2 text-xs text-ink-muted sm:max-w-xs">
+              <Mail className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+              A confirmation email from Code-a-Nova is sent to {user?.email} after you submit.
+            </p>
+            <Button type="submit" size="lg" loading={submitting}>
+              Submit registration
+              {!submitting && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
             </Button>
           </div>
         </form>
@@ -774,4 +570,3 @@ export default function HackathonRegister() {
     </div>
   );
 }
-

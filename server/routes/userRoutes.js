@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { getMe } from '../controllers/userController.js';
+import { getMe, updateMe } from '../controllers/userController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
 router.get('/me', protect, getMe);
+router.put('/update', protect, updateMe);
 
 export default router;
-
