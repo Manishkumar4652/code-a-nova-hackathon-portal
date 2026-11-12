@@ -21,17 +21,40 @@ export const isSmtpConfigured = () => {
  */
 export const createTransporter = () => {
   if (isSmtpConfigured()) {
+    const isGmail =
+      (process.env.EMAIL_HOST && process.env.EMAIL_HOST.toLowerCase().includes('gmail')) ||
+      (process.env.EMAIL_USER && process.env.EMAIL_USER.toLowerCase().endsWith('@gmail.com'));
+
+    const cleanPass = process.env.EMAIL_PASS.replace(/\s+/g, '');
+    const cleanUser = process.env.EMAIL_USER.trim();
+
+    if (isGmail) {
+      return nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: cleanUser,
+          pass: cleanPass,
+        },
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 20000,
+      });
+    }
+
     const port = Number(process.env.EMAIL_PORT) || 465;
     const isSecure = port === 465;
+
     return nodemailer.createTransport({
       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
       port,
       secure: isSecure,
       auth: {
-        user: process.env.EMAIL_USER.trim(),
-        // Gmail app passwords are shown with spaces — strip them
-        pass: process.env.EMAIL_PASS.replace(/\s+/g, ''),
+        user: cleanUser,
+        pass: cleanPass,
       },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000,
     });
   }
 

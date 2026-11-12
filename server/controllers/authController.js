@@ -68,6 +68,13 @@ export const signup = async (req, res, next) => {
         otp: plainOtp,
       });
 
+      if (!emailResult.success) {
+        return res.status(500).json({
+          status: 'error',
+          message: `Failed to deliver verification email: ${emailResult.error || 'SMTP delivery failed'}. Please check your email settings or try again.`,
+        });
+      }
+
       return res.status(200).json({
         status: 'success',
         message: 'Verification code resent. Please verify your email with the 6-digit OTP.',
@@ -99,6 +106,13 @@ export const signup = async (req, res, next) => {
       recipientName: newUser.fullName,
       otp: plainOtp,
     });
+
+    if (!emailResult.success) {
+      return res.status(500).json({
+        status: 'error',
+        message: `Failed to deliver verification email: ${emailResult.error || 'SMTP delivery failed'}. Please check your email settings or try again.`,
+      });
+    }
 
     return res.status(201).json({
       status: 'success',
@@ -255,6 +269,13 @@ export const resendOTP = async (req, res, next) => {
       recipientName: user.fullName,
       otp: plainOtp,
     });
+
+    if (!emailResult.success) {
+      return res.status(500).json({
+        status: 'error',
+        message: `Failed to deliver verification email: ${emailResult.error || 'SMTP delivery failed'}. Please check your email settings or try again.`,
+      });
+    }
 
     return res.status(200).json({
       status: 'success',
