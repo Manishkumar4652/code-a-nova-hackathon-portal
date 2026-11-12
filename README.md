@@ -6,6 +6,15 @@ Developed for the **Code-a-Nova Full Stack Developer Internship Task**.
 
 ---
 
+## 🌐 Live Deployments
+
+- **Live Application (Frontend)**: [https://code-a-nova-hackathon-portal.vercel.app](https://code-a-nova-hackathon-portal.vercel.app)
+- **Live REST API (Backend)**: [https://code-a-nova-hackathon-portal.onrender.com](https://code-a-nova-hackathon-portal.onrender.com)
+- **API Health Check**: [https://code-a-nova-hackathon-portal.onrender.com/api/health](https://code-a-nova-hackathon-portal.onrender.com/api/health)
+- **GitHub Repository**: [https://github.com/Manishkumar4652/code-a-nova-hackathon-portal](https://github.com/Manishkumar4652/code-a-nova-hackathon-portal)
+
+---
+
 ## 📌 Project Overview
 
 The **Code-a-Nova Hackathon Registration Portal** provides a complete end-to-end registration and dashboard experience for hackathon attendees and organizers. Key capabilities include:
