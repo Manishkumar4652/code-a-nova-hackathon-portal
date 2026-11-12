@@ -295,7 +295,9 @@ const deliver = async (mailOptions) => {
         body: JSON.stringify({
           sender: {
             name: SENDER_NAME,
-            email: process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : 'noreply@codeanova.com',
+            email:
+              process.env.BREVO_SENDER_EMAIL?.trim() ||
+              (process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : 'noreply@codeanova.com'),
           },
           to: [{ email: mailOptions.to }],
           subject: mailOptions.subject,
