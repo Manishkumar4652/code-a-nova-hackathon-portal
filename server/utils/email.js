@@ -5,14 +5,17 @@ import { escapeHtml } from './validators.js';
 const SENDER_NAME = 'Code-a-Nova';
 
 /**
- * Check if SMTP credentials are configured in environment
+ * Check if email credentials (HTTP webhook, Brevo, Resend, or SMTP) are configured in environment
  */
 export const isSmtpConfigured = () => {
   return Boolean(
-    process.env.EMAIL_USER &&
-    process.env.EMAIL_PASS &&
-    process.env.EMAIL_USER.trim() !== '' &&
-    process.env.EMAIL_PASS.trim() !== ''
+    process.env.EMAIL_WEBHOOK_URL ||
+    process.env.BREVO_API_KEY ||
+    process.env.RESEND_API_KEY ||
+    (process.env.EMAIL_USER &&
+      process.env.EMAIL_PASS &&
+      process.env.EMAIL_USER.trim() !== '' &&
+      process.env.EMAIL_PASS.trim() !== '')
   );
 };
 
@@ -243,17 +246,112 @@ export const generateConfirmationEmailHTML = ({
 };
 
 /**
- * Shared send helper — returns a uniform result object and never throws.
+ * Shared send helper — supports HTTPS Webhook, Brevo REST API, Resend REST API,
+ * and standard Nodemailer SMTP. Never throws unhandled errors.
  */
 const deliver = async (mailOptions) => {
   const configured = isSmtpConfigured();
+
+  // Mode 1: HTTPS Webhook (e.g. Google Apps Script Web App - bypasses cloud SMTP port blocks)
+  if (process.env.EMAIL_WEBHOOK_URL) {
+    try {
+      const response = await fetch(process.env.EMAIL_WEBHOOK_URL.trim(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: mailOptions.to,
+          subject: mailOptions.subject,
+          html: mailOptions.html,
+          text: mailOptions.text,
+        }),
+      });
+
+      if (response.ok) {
+        return {
+          success: true,
+          configured: true,
+          messageId: `webhook-${Date.now()}`,
+        };
+      }
+
+      const errText = await response.text();
+      throw new Error(`Webhook error (${response.status}): ${errText}`);
+    } catch (error) {
+      console.error(`❌ [Email Webhook Delivery Error]: ${error.message}`);
+      return { success: false, configured: true, error: error.message };
+    }
+  }
+
+  // Mode 2: Brevo (Sendinblue) Transactional REST API over HTTPS port 443
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'api-key': process.env.BREVO_API_KEY.trim(),
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: {
+            name: SENDER_NAME,
+            email: process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : 'noreply@codeanova.com',
+          },
+          to: [{ email: mailOptions.to }],
+          subject: mailOptions.subject,
+          htmlContent: mailOptions.html,
+          textContent: mailOptions.text,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        return { success: true, configured: true, messageId: data.messageId };
+      }
+      throw new Error(data.message || `Brevo API error (${response.status})`);
+    } catch (error) {
+      console.error(`❌ [Brevo API Delivery Error]: ${error.message}`);
+      return { success: false, configured: true, error: error.message };
+    }
+  }
+
+  // Mode 3: Resend REST API over HTTPS port 443
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const fromEmail = process.env.RESEND_FROM || `${SENDER_NAME} <onboarding@resend.dev>`;
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [mailOptions.to],
+          subject: mailOptions.subject,
+          html: mailOptions.html,
+          text: mailOptions.text,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        return { success: true, configured: true, messageId: data.id };
+      }
+      throw new Error(data.message || `Resend API error (${response.status})`);
+    } catch (error) {
+      console.error(`❌ [Resend API Delivery Error]: ${error.message}`);
+      return { success: false, configured: true, error: error.message };
+    }
+  }
+
+  // Mode 4: Standard Nodemailer (SMTP / direct connection)
   try {
     const info = await createTransporter().sendMail(mailOptions);
     return {
       success: true,
       configured,
       messageId: info.messageId,
-      // With jsonTransport (no SMTP) the rendered message is returned for local debugging
       jsonOutput: !configured ? info.message : undefined,
     };
   } catch (error) {
