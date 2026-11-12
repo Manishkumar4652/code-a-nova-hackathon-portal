@@ -11,7 +11,7 @@ const app = express();
 // Render / Railway sit behind a reverse proxy — needed so rate limiting sees the real client IP
 app.set('trust proxy', 1);
 
-// CORS configuration supporting local development ports and environment origins
+// CORS configuration supporting local development ports, Vercel deployments, and environment origins
 const defaultOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
@@ -21,7 +21,7 @@ const defaultOrigins = [
 ];
 
 const envOrigins = process.env.CLIENT_URL
-  ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
+  ? process.env.CLIENT_URL.split(',').map((url) => url.trim().replace(/\/+$/, ''))
   : [];
 
 const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
@@ -30,9 +30,19 @@ app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      if (!origin) return callback(null, true);
+
+      const normalizedOrigin = origin.replace(/\/+$/, '');
+
+      // Allow configured origins, wildcard, or any Vercel domain (*.vercel.app)
+      if (
+        allowedOrigins.includes(normalizedOrigin) ||
+        allowedOrigins.includes('*') ||
+        normalizedOrigin.endsWith('.vercel.app')
+      ) {
         return callback(null, true);
       }
+
       return callback(new Error(`CORS error: Origin ${origin} is not allowed.`), false);
     },
     credentials: true,
