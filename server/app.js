@@ -38,14 +38,19 @@ app.use(
       if (
         allowedOrigins.includes(normalizedOrigin) ||
         allowedOrigins.includes('*') ||
-        normalizedOrigin.endsWith('.vercel.app')
+        normalizedOrigin.endsWith('.vercel.app') ||
+        normalizedOrigin.includes('localhost') ||
+        normalizedOrigin.includes('127.0.0.1')
       ) {
         return callback(null, true);
       }
 
-      return callback(new Error(`CORS error: Origin ${origin} is not allowed.`), false);
+      return callback(null, false);
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    optionsSuccessStatus: 200,
   })
 );
 
